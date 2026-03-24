@@ -1,9 +1,9 @@
 import { Toaster } from "@scholar-seek/ui/components/sonner";
 import {
+	createRootRouteWithContext,
 	HeadContent,
 	Outlet,
 	Scripts,
-	createRootRouteWithContext,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
@@ -11,7 +11,7 @@ import Header from "../components/header";
 
 import appCss from "../index.css?url";
 
-export interface RouterAppContext {}
+export type RouterAppContext = object;
 
 export const Route = createRootRouteWithContext<RouterAppContext>()({
 	head: () => ({
@@ -40,7 +40,7 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
 
 function RootDocument() {
 	return (
-		<html lang="en" className="dark">
+		<html className="dark" lang="en">
 			<head>
 				<HeadContent />
 			</head>

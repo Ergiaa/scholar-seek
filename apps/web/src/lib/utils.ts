@@ -1,5 +1,3 @@
-export { cn } from "@scholar-seek/ui/lib/utils";
-
 export function formatDate(dateString: string) {
 	try {
 		const date = new Date(dateString);
