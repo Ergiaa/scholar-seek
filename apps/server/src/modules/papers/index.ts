@@ -20,7 +20,17 @@ export const papersModule = new Elysia({
 	name: "module.papers",
 	prefix: "/api",
 })
-	.use(rateLimit({ duration: 60_000, max: 100 }))
+	.use(
+		rateLimit({
+			duration: 60_000,
+			max: 100,
+			generator: (req, server) =>
+				server?.requestIP(req)?.address ??
+				req.headers.get("x-forwarded-for") ??
+				req.headers.get("x-real-ip") ??
+				"unknown",
+		})
+	)
 	.model({
 		paper: PaperResponse,
 		searchResult: SearchResult,
