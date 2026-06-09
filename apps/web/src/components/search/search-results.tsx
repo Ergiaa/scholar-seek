@@ -1,9 +1,20 @@
 import { Skeleton } from "@scholar-seek/ui/components/skeleton";
 import { X } from "lucide-react";
-import { createContext, type ReactNode, useContext, useEffect, useRef, useState } from "react";
+import {
+	createContext,
+	type ReactNode,
+	useContext,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
 import { useSearchPapers } from "../../lib/hooks/use-papers";
 import type { Facets, SortBy } from "../../types/paper";
-import { FilterProvider, type FilterSnapshot, useFilterContext } from "./active-filters";
+import {
+	FilterProvider,
+	type FilterSnapshot,
+	useFilterContext,
+} from "./active-filters";
 import { EmptyState } from "./empty-state";
 import { FilterPanel } from "./filter-panel";
 import { PageSizeSelector } from "./page-size-selector";
@@ -223,7 +234,11 @@ function SearchResultsContent({
 	const end = Math.min(page * pageSize, data.total);
 
 	return (
-		<div aria-atomic="false" aria-live="polite" className={`space-y-4 transition-opacity duration-150 ${isFetching ? "opacity-50" : "opacity-100"}`}>
+		<div
+			aria-atomic="false"
+			aria-live="polite"
+			className={`space-y-4 transition-opacity duration-150 ${isFetching ? "opacity-50" : "opacity-100"}`}
+		>
 			<div className="flex flex-wrap items-center justify-between gap-2">
 				<p className="text-muted-foreground text-sm">
 					Showing {start}–{end} of {data.total} results
@@ -285,7 +300,11 @@ export function SearchResults({
 	initialFilters = {},
 }: SearchResultsProps) {
 	return (
-		<FilterProvider onFiltersChange={onFiltersChange} onPageReset={() => onPageChange(1)} search={initialFilters}>
+		<FilterProvider
+			onFiltersChange={onFiltersChange}
+			onPageReset={() => onPageChange(1)}
+			search={initialFilters}
+		>
 			<FacetsProvider>
 				<SearchResultsLayout
 					onPageChange={onPageChange}

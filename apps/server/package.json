@@ -10,11 +10,13 @@
     "start": "bun run dist/index.mjs"
   },
   "dependencies": {
+    "@elysia/static": "^1.3.1",
     "@elysiajs/cors": "^1.4.1",
     "@scholar-seek/db": "workspace:*",
     "@scholar-seek/env": "workspace:*",
     "bullmq": "^5.72.1",
     "dotenv": "catalog:",
+    "drizzle-orm": "^0.45.1",
     "elysia": "^1.4.21",
     "elysia-rate-limit": "^4.5.1",
     "fast-xml-parser": "^5.5.10",

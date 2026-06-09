@@ -96,3 +96,5 @@ bun run dev
 | `bun run db:migrate` | Run pending migrations |
 | `bun run db:seed` | Seed the database with sample data |
 | `bun run db:studio` | Open Drizzle Studio |
+
+

@@ -13,9 +13,9 @@ export interface FilterSnapshot {
 	authorFilter: string;
 	journalFilter: string[];
 	keywordFilter: string[];
+	sortBy: SortBy;
 	yearFrom: number;
 	yearTo: number;
-	sortBy: SortBy;
 }
 
 interface FilterContextValue {
@@ -63,8 +63,15 @@ interface FilterProviderProps {
 const YEAR_MIN = 1990;
 const YEAR_MAX = new Date().getFullYear();
 
-export function FilterProvider({ children, search, onPageReset, onFiltersChange }: FilterProviderProps) {
-	const [authorFilter, setAuthorFilterState] = useState(search.authorFilter ?? "");
+export function FilterProvider({
+	children,
+	search,
+	onPageReset,
+	onFiltersChange,
+}: FilterProviderProps) {
+	const [authorFilter, setAuthorFilterState] = useState(
+		search.authorFilter ?? ""
+	);
 	const [journalFilter, setJournalFilterState] = useState(
 		search.journalFilter ?? []
 	);
@@ -82,8 +89,23 @@ export function FilterProvider({ children, search, onPageReset, onFiltersChange 
 			mounted.current = true;
 			return;
 		}
-		onFiltersChange?.({ authorFilter, journalFilter, keywordFilter, yearFrom, yearTo, sortBy });
-	}, [authorFilter, journalFilter, keywordFilter, yearFrom, yearTo, sortBy]);
+		onFiltersChange?.({
+			authorFilter,
+			journalFilter,
+			keywordFilter,
+			yearFrom,
+			yearTo,
+			sortBy,
+		});
+	}, [
+		authorFilter,
+		journalFilter,
+		keywordFilter,
+		yearFrom,
+		yearTo,
+		sortBy,
+		onFiltersChange,
+	]);
 
 	const activeFilterCount = useMemo(() => {
 		let count = 0;

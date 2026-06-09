@@ -63,14 +63,18 @@ export function DateRangeFilter({
 	}, [onYearRangeChange]);
 
 	useEffect(() => {
-		if (debounceRef.current) clearTimeout(debounceRef.current);
+		if (debounceRef.current) {
+			clearTimeout(debounceRef.current);
+		}
 		debounceRef.current = setTimeout(() => {
 			if (localFrom !== yearFrom || localTo !== yearTo) {
 				callbackRef.current(localFrom, localTo);
 			}
 		}, DEBOUNCE_MS);
 		return () => {
-			if (debounceRef.current) clearTimeout(debounceRef.current);
+			if (debounceRef.current) {
+				clearTimeout(debounceRef.current);
+			}
 		};
 	}, [localFrom, localTo, yearFrom, yearTo]);
 
@@ -83,10 +87,9 @@ export function DateRangeFilter({
 			<p className="text-center text-muted-foreground text-sm">
 				{localFrom} — {localTo}
 			</p>
-			<div
+			<fieldset
 				aria-label="Publication year range"
 				className="relative flex h-5 items-center"
-				role="group"
 			>
 				{/* Track background */}
 				<div className="absolute h-1.5 w-full rounded-full bg-muted" />
@@ -127,7 +130,7 @@ export function DateRangeFilter({
 					type="range"
 					value={localTo}
 				/>
-			</div>
+			</fieldset>
 		</div>
 	);
 }

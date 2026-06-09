@@ -145,7 +145,9 @@ function mapRecord(record: OaiRecord): NewPaper | null {
 		authors,
 		published_at: publishedAt,
 		journal: meta["journal-ref"]?.trim() ?? null,
-		doi: (typeof meta.doi === "object" ? meta.doi["#text"] : meta.doi)?.trim() ?? null,
+		doi:
+			(typeof meta.doi === "object" ? meta.doi["#text"] : meta.doi)?.trim() ??
+			null,
 		keywords: categories.length > 0 ? categories : null,
 		source_url: `https://arxiv.org/abs/${arxivId}`,
 		source: "arxiv",
@@ -228,7 +230,9 @@ export const arxivAdapter: SourceAdapter = {
 		let totalYielded = 0;
 		const maxRecords = options.maxRecords ?? Number.POSITIVE_INFINITY;
 		// Subcategories that need post-fetch filtering (e.g. ["cs.LG", "cs.AI"])
-		const subcategories = (options.categories ?? []).filter((c) => c.includes("."));
+		const subcategories = (options.categories ?? []).filter((c) =>
+			c.includes(".")
+		);
 
 		while (true) {
 			const { records, resumptionToken } = await fetchPage(url);

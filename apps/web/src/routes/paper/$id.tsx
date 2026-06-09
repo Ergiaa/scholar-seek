@@ -100,11 +100,7 @@ function PaperPage() {
 					</h1>
 					<div className="mt-4 flex flex-wrap gap-1.5">
 						{paper.authors.map((author) => (
-							<Link
-								key={author}
-								search={{ author, q: author }}
-								to="/search"
-							>
+							<Link key={author} search={{ author, q: author }} to="/search">
 								<Badge
 									className="cursor-pointer transition-[transform,background-color] hover:scale-105 hover:bg-secondary/80"
 									variant="secondary"
@@ -142,7 +138,9 @@ function PaperPage() {
 						<div className="flex items-start justify-between gap-4">
 							<span className="shrink-0 text-muted-foreground">Journal</span>
 							<span className="break-words text-right font-medium">
-								{paper.journal ?? <span className="text-muted-foreground">—</span>}
+								{paper.journal ?? (
+									<span className="text-muted-foreground">—</span>
+								)}
 							</span>
 						</div>
 						<div className="flex items-center justify-between">
@@ -186,11 +184,7 @@ function PaperPage() {
 						<CardContent>
 							<div className="flex flex-wrap gap-1.5">
 								{paper.keywords.map((keyword) => (
-									<Link
-										key={keyword}
-										search={{ q: keyword }}
-										to="/search"
-									>
+									<Link key={keyword} search={{ q: keyword }} to="/search">
 										<Badge
 											className="cursor-pointer transition-[transform,background-color] hover:scale-105 hover:bg-primary/15"
 											variant="keyword"

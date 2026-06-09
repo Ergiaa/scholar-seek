@@ -73,7 +73,8 @@
   "javascript": {
     "formatter": {
       "quoteStyle": "double"
-    }
+    },
+    "globals": ["Bun"]
   },
   "css": {
     "parser": {

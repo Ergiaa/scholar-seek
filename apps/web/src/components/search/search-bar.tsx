@@ -32,7 +32,9 @@ export function SearchBar({ defaultValue = "", onSearch }: SearchBarProps) {
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
 		const trimmed = query.trim();
-		if (!trimmed) return;
+		if (!trimmed) {
+			return;
+		}
 		if (onSearch) {
 			onSearch(trimmed);
 		} else {
@@ -42,7 +44,10 @@ export function SearchBar({ defaultValue = "", onSearch }: SearchBarProps) {
 
 	return (
 		<form className="relative flex w-full items-center" onSubmit={handleSubmit}>
-			<Search aria-hidden="true" className="pointer-events-none absolute left-4 h-5 w-5 text-muted-foreground" />
+			<Search
+				aria-hidden="true"
+				className="pointer-events-none absolute left-4 h-5 w-5 text-muted-foreground"
+			/>
 			<Input
 				autoComplete="off"
 				className="h-14 w-full rounded-lg border-0 bg-transparent pr-40 pl-12 text-lg shadow-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-0"

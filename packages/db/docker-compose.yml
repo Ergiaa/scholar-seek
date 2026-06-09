@@ -20,7 +20,7 @@ services:
     restart: unless-stopped
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     container_name: scholar-seek-redis
     ports:
       - "6379:6379"
@@ -31,6 +31,38 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
+
+  server:
+    build:
+      context: ../..
+      dockerfile: apps/server/Dockerfile
+    container_name: scholar-seek-server
+    environment:
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/scholar-seek
+      REDIS_URL: redis://redis:6379
+      CORS_ORIGIN: http://localhost:3002
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile
+    container_name: scholar-seek-web
+    ports:
+      - "3001:3001"
+    environment:
+      VITE_SERVER_URL: http://server:3000
+    depends_on:
+      - server
     restart: unless-stopped
 
 volumes:

@@ -5,8 +5,8 @@ import {
 } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { z } from "zod";
-import { SearchBar } from "../../components/search/search-bar";
 import type { FilterSnapshot } from "../../components/search/active-filters";
+import { SearchBar } from "../../components/search/search-bar";
 import { SearchResults } from "../../components/search/search-results";
 import { saveSearchState } from "../../lib/search-state";
 import { normalizeToArray } from "../../lib/utils";
@@ -57,7 +57,7 @@ function SearchPage() {
 				pageSize,
 			});
 		}
-	}, [q, page, pageSize, author, journal, keyword, yearFrom, yearTo, sortBy]);
+	}, [q, page, pageSize]);
 
 	const handleSearch = (query: string) => {
 		navigate({
@@ -89,11 +89,15 @@ function SearchPage() {
 				pageSize,
 				page: 1,
 				author: filters.authorFilter || undefined,
-				journal: filters.journalFilter.length ? filters.journalFilter : undefined,
-				keyword: filters.keywordFilter.length ? filters.keywordFilter : undefined,
+				journal: filters.journalFilter.length
+					? filters.journalFilter
+					: undefined,
+				keyword: filters.keywordFilter.length
+					? filters.keywordFilter
+					: undefined,
 				yearFrom: filters.yearFrom,
 				yearTo: filters.yearTo,
-				sortBy: filters.sortBy !== "relevance" ? filters.sortBy : undefined,
+				sortBy: filters.sortBy === "relevance" ? undefined : filters.sortBy,
 			},
 		});
 	};

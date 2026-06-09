@@ -6,9 +6,9 @@ import {
 	CardTitle,
 } from "@scholar-seek/ui/components/card";
 import { Link } from "@tanstack/react-router";
-import { ArxivAbstract } from "../paper/arxiv-abstract";
 import { formatDate } from "../../lib/utils";
 import type { Paper } from "../../types/paper";
+import { ArxivAbstract } from "../paper/arxiv-abstract";
 
 interface ResultCardProps {
 	paper: Paper;
@@ -57,10 +57,7 @@ export function ResultCard({ paper }: ResultCardProps) {
 					</div>
 				</Link>
 				<div className="flex items-center justify-between gap-2 pt-2 text-muted-foreground text-xs">
-					<span
-						className="min-w-0 truncate"
-						title={paper.journal ?? undefined}
-					>
+					<span className="min-w-0 truncate" title={paper.journal ?? undefined}>
 						{paper.journal
 							? `${paper.journal} • ${formatDate(paper.publishedAt)}`
 							: formatDate(paper.publishedAt)}

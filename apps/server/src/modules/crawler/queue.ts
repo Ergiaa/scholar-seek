@@ -183,8 +183,12 @@ export async function cleanupStuckJobs(): Promise<void> {
 let worker: Worker<CrawlJobData> | null = null;
 
 export async function stopCrawlWorker(): Promise<void> {
-	if (!worker) return;
-	console.log("[crawler] shutting down worker — waiting for current batch to finish...");
+	if (!worker) {
+		return;
+	}
+	console.log(
+		"[crawler] shutting down worker — waiting for current batch to finish..."
+	);
 	await worker.close();
 	worker = null;
 	console.log("[crawler] worker stopped");

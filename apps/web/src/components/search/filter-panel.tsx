@@ -134,7 +134,7 @@ export function FilterPanel({ facets }: FilterPanelProps) {
 
 			<aside
 				aria-label="Filters"
-				className={`w-full shrink-0 self-start lg:w-64 lg:sticky lg:top-4 ${
+				className={`w-full shrink-0 self-start lg:sticky lg:top-4 lg:w-64 ${
 					mobileOpen ? "block" : "hidden lg:block"
 				}`}
 			>

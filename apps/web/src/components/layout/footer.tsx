@@ -16,7 +16,10 @@ export function Footer() {
 						<Link className="transition-colors hover:text-foreground" to="/">
 							Home
 						</Link>
-						<Link className="transition-colors hover:text-foreground" to="/search">
+						<Link
+							className="transition-colors hover:text-foreground"
+							to="/search"
+						>
 							Browse All
 						</Link>
 					</div>

@@ -178,8 +178,8 @@ export async function searchPapers(params: {
 	if (keywords && keywords.length > 0) {
 		filterConditions.push(
 			or(
-				...keywords.map((k) =>
-					sql`${papers.keywords}::jsonb @> ${JSON.stringify([k])}::jsonb`
+				...keywords.map(
+					(k) => sql`${papers.keywords}::jsonb @> ${JSON.stringify([k])}::jsonb`
 				)
 			)
 		);
@@ -282,8 +282,9 @@ export async function getRelatedPapers(
 			and(
 				sql`${papers.id} != ${id}`,
 				or(
-					...keywords.map((k) =>
-						sql`${papers.keywords}::jsonb @> ${JSON.stringify([k])}::jsonb`
+					...keywords.map(
+						(k) =>
+							sql`${papers.keywords}::jsonb @> ${JSON.stringify([k])}::jsonb`
 					)
 				)
 			)
