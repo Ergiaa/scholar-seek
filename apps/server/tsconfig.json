@@ -9,5 +9,6 @@
     },
     "jsx": "react-jsx",
     "strictNullChecks": true
-  }
+  },
+  "exclude": ["dist", "**/*.test.ts"]
 }

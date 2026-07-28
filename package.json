@@ -25,6 +25,7 @@
     "dev": "turbo dev",
     "build": "turbo build",
     "check-types": "turbo check-types",
+    "test": "turbo test",
     "dev:web": "turbo -F @scholar-seek/web dev",
     "dev:server": "turbo -F @scholar-seek/server dev",
     "db:push": "turbo -F @scholar-seek/db db:push",
