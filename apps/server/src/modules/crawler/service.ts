@@ -8,7 +8,13 @@ export async function startCrawl(
 	body: CrawlOptionsBodyType
 ): Promise<{ jobId: string; historyId: string }> {
 	const source = body.source ?? "arxiv";
+
+	if (source === "semantic_scholar" && !body.query?.trim()) {
+		throw new Error('The semantic_scholar source requires a "query"');
+	}
+
 	const options = {
+		query: body.query,
 		since: body.since,
 		until: body.until,
 		categories: body.categories,

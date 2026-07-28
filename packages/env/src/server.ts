@@ -10,6 +10,13 @@ export const env = createEnv({
 		NODE_ENV: z
 			.enum(["development", "production", "test"])
 			.default("development"),
+		// Optional — Semantic Scholar crawls work unauthenticated (shared
+		// public rate-limit pool) but a free key gives a dedicated 1 req/s.
+		S2_API_KEY: z.string().min(1).optional(),
+		// Optional — ML service base URL for semantic/hybrid search
+		ML_SERVICE_URL: z.string().url().optional().default("http://localhost:8000"),
+		// Optional — shared secret for ML service internal endpoints
+		ML_RELOAD_TOKEN: z.string().min(1).optional(),
 	},
 	runtimeEnv: process.env,
 	emptyStringAsUndefined: true,

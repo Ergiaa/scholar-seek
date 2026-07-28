@@ -1,9 +1,15 @@
 import { t } from "elysia";
 
-export const CrawlSource = t.Union([t.Literal("arxiv")]);
+export const CrawlSource = t.Union([
+	t.Literal("arxiv"),
+	t.Literal("semantic_scholar"),
+	t.Literal("doaj"),
+]);
 
 export const CrawlOptionsBody = t.Object({
 	source: t.Optional(CrawlSource),
+	// Search query — required when source is "semantic_scholar"
+	query: t.Optional(t.String({ maxLength: 300 })),
 	since: t.Optional(t.String({ pattern: "^\\d{4}-\\d{2}-\\d{2}$" })),
 	until: t.Optional(t.String({ pattern: "^\\d{4}-\\d{2}-\\d{2}$" })),
 	categories: t.Optional(

@@ -7,7 +7,22 @@ import { desc, eq, sql } from "drizzle-orm";
 import { cacheDel } from "../../lib/cache";
 import { getRedis } from "../../lib/redis";
 import { arxivAdapter } from "./sources/arxiv";
+import { doajAdapter } from "./sources/doaj";
+import { semanticScholarAdapter } from "./sources/semantic-scholar";
 import type { CrawlOptions, SourceAdapter } from "./sources/types";
+
+async function triggerMlBackfill(): Promise<void> {
+	const url = `${env.ML_SERVICE_URL}/internal/backfill`;
+	const headers: Record<string, string> = { "Content-Type": "application/json" };
+	if (env.ML_RELOAD_TOKEN) {
+		headers["X-Reload-Token"] = env.ML_RELOAD_TOKEN;
+	}
+	const res = await fetch(url, { method: "POST", headers });
+	if (!res.ok) {
+		throw new Error(`ML backfill returned ${res.status}`);
+	}
+	console.log("[crawler] ML backfill triggered");
+}
 
 export interface CrawlJobData {
 	/** UUID of the crawl_history row. Created by the service before enqueuing. */
@@ -20,6 +35,8 @@ const QUEUE_NAME = "crawl-jobs";
 
 const adapters: Record<string, SourceAdapter> = {
 	arxiv: arxivAdapter,
+	semantic_scholar: semanticScholarAdapter,
+	doaj: doajAdapter,
 };
 
 let queue: Queue<CrawlJobData> | null = null;
@@ -66,12 +83,19 @@ async function processJob(
 						target: [papers.source, papers.source_id],
 						set: {
 							title: sql`excluded.title`,
-							abstract: sql`excluded.abstract`,
 							authors: sql`excluded.authors`,
-							keywords: sql`excluded.keywords`,
-							published_at: sql`excluded.published_at`,
-							journal: sql`excluded.journal`,
-							doi: sql`excluded.doi`,
+							// COALESCE so a source that lacks a field (e.g. Semantic
+							// Scholar records without abstracts) can't null out data
+							// another source already provided for the same paper.
+							abstract: sql`COALESCE(excluded.abstract, ${papers.abstract})`,
+							keywords: sql`COALESCE(excluded.keywords, ${papers.keywords})`,
+							published_at: sql`COALESCE(excluded.published_at, ${papers.published_at})`,
+							journal: sql`COALESCE(excluded.journal, ${papers.journal})`,
+							doi: sql`COALESCE(excluded.doi, ${papers.doi})`,
+							// Citation counts only grow — GREATEST prevents sources that
+							// don't know them (arXiv OAI reports 0) from wiping enriched
+							// values written by Semantic Scholar.
+							citation_count: sql`GREATEST(${papers.citation_count}, excluded.citation_count)`,
 						},
 					})
 					.returning({ id: papers.id });
@@ -121,6 +145,12 @@ async function processJob(
 		// Invalidate paper search/journals caches now that new data exists
 		await cacheDel("papers:*");
 		await cacheDel("journals:*");
+
+		if (papersInserted > 0) {
+			triggerMlBackfill().catch((err: unknown) => {
+				console.warn("[crawler] ML backfill trigger failed:", err instanceof Error ? err.message : String(err));
+			});
+		}
 	} catch (err) {
 		const msg = err instanceof Error ? err.message : String(err);
 
@@ -183,8 +213,12 @@ export async function cleanupStuckJobs(): Promise<void> {
 let worker: Worker<CrawlJobData> | null = null;
 
 export async function stopCrawlWorker(): Promise<void> {
-	if (!worker) return;
-	console.log("[crawler] shutting down worker — waiting for current batch to finish...");
+	if (!worker) {
+		return;
+	}
+	console.log(
+		"[crawler] shutting down worker — waiting for current batch to finish..."
+	);
 	await worker.close();
 	worker = null;
 	console.log("[crawler] worker stopped");
