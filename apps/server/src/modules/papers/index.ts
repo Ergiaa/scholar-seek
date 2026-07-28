@@ -13,6 +13,7 @@ import {
 	getJournals,
 	getPaper,
 	getRelatedPapers,
+	mlSearchPapers,
 	searchPapers,
 } from "./service";
 
@@ -45,15 +46,22 @@ export const papersModule = new Elysia({
 		async ({ query }) => {
 			const params = {
 				q: query.q,
+				searchIn: query.searchIn,
 				page: query.page ? Number(query.page) : undefined,
 				pageSize: query.pageSize ? Number(query.pageSize) : undefined,
 				sortBy: query.sortBy,
 				author: query.author,
+				field: query.field,
 				journal: query.journal,
 				keyword: query.keyword,
+				source: query.source,
 				yearFrom: query.yearFrom ? Number(query.yearFrom) : undefined,
 				yearTo: query.yearTo ? Number(query.yearTo) : undefined,
 			};
+
+			if (query.searchMode === "ml") {
+				return await mlSearchPapers(params);
+			}
 
 			return await searchPapers(params);
 		},

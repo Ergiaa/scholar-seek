@@ -22,6 +22,7 @@ export const Facets = t.Object({
 	keywords: t.Array(FacetItem),
 	authors: t.Array(FacetItem),
 	years: t.Array(FacetItem),
+	sources: t.Array(FacetItem),
 });
 
 export const SearchResult = t.Object({
@@ -30,6 +31,7 @@ export const SearchResult = t.Object({
 	page: t.Number(),
 	pageSize: t.Number(),
 	facets: Facets,
+	subqueries: t.Optional(t.Array(t.String())),
 });
 
 export const ErrorResponse = t.Object({
@@ -44,8 +46,30 @@ export const SortBy = t.Union([
 	t.Literal("author_asc"),
 ]);
 
+// Which column(s) the free-text query is matched against
+export const SearchIn = t.Union([
+	t.Literal("all"),
+	t.Literal("title"),
+	t.Literal("abstract"),
+	t.Literal("keywords"),
+]);
+
+export const SearchMode = t.Union([t.Literal("standard"), t.Literal("ml")]);
+
 export const SearchQuery = t.Object({
 	q: t.Optional(t.String({ maxLength: 200 })),
+	searchIn: t.Optional(SearchIn),
+	searchMode: t.Optional(SearchMode),
+	// Field of study (e.g. "Computer Science") — matched against Semantic
+	// Scholar field names and mapped arXiv category prefixes
+	field: t.Optional(t.String({ maxLength: 100 })),
+	// Repository the paper was crawled from (e.g. "arxiv")
+	source: t.Optional(
+		t.Union([
+			t.String({ maxLength: 100 }),
+			t.Array(t.String({ maxLength: 100 })),
+		])
+	),
 	page: t.Optional(t.Numeric({ minimum: 1, maximum: 1000 })),
 	pageSize: t.Optional(t.Numeric()),
 	sortBy: t.Optional(SortBy),
@@ -77,7 +101,9 @@ export const PaperParams = t.Object({
 export const JournalsResponse = t.Array(t.String());
 
 export type PaperResponseType = typeof PaperResponse.static;
+export type SearchInType = typeof SearchIn.static;
 export type FacetItemType = typeof FacetItem.static;
 export type FacetsType = typeof Facets.static;
 export type SearchResultType = typeof SearchResult.static;
 export type SortByType = typeof SortBy.static;
+export type SearchModeType = typeof SearchMode.static;
