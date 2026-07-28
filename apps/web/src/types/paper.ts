@@ -17,14 +17,22 @@ export type SortBy =
 	| "title_asc"
 	| "author_asc";
 
+export type SearchIn = "all" | "title" | "abstract" | "keywords";
+
+export type SearchMode = "standard" | "ml";
+
 export interface SearchParams {
 	authorFilter?: string;
+	field?: string;
 	journalFilter?: string[];
 	keywordFilter?: string[];
 	page?: number;
 	pageSize?: number;
 	q?: string;
+	searchIn?: SearchIn;
+	searchMode?: SearchMode;
 	sortBy?: SortBy;
+	sourceFilter?: string[];
 	yearFrom?: number;
 	yearTo?: number;
 }
@@ -38,6 +46,7 @@ export interface Facets {
 	authors: FacetItem[];
 	journals: FacetItem[];
 	keywords: FacetItem[];
+	sources: FacetItem[];
 	years: FacetItem[];
 }
 
@@ -46,5 +55,6 @@ export interface SearchResult {
 	page: number;
 	pageSize: number;
 	papers: Paper[];
+	subqueries?: string[];
 	total: number;
 }

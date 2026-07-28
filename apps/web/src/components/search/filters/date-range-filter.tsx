@@ -63,14 +63,18 @@ export function DateRangeFilter({
 	}, [onYearRangeChange]);
 
 	useEffect(() => {
-		if (debounceRef.current) clearTimeout(debounceRef.current);
+		if (debounceRef.current) {
+			clearTimeout(debounceRef.current);
+		}
 		debounceRef.current = setTimeout(() => {
 			if (localFrom !== yearFrom || localTo !== yearTo) {
 				callbackRef.current(localFrom, localTo);
 			}
 		}, DEBOUNCE_MS);
 		return () => {
-			if (debounceRef.current) clearTimeout(debounceRef.current);
+			if (debounceRef.current) {
+				clearTimeout(debounceRef.current);
+			}
 		};
 	}, [localFrom, localTo, yearFrom, yearTo]);
 

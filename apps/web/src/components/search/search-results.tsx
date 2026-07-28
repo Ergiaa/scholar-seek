@@ -1,9 +1,21 @@
 import { Skeleton } from "@scholar-seek/ui/components/skeleton";
 import { X } from "lucide-react";
-import { createContext, type ReactNode, useContext, useEffect, useRef, useState } from "react";
+import {
+	createContext,
+	type ReactNode,
+	useContext,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
+import { SOURCE_LABELS } from "../../lib/constants";
 import { useSearchPapers } from "../../lib/hooks/use-papers";
-import type { Facets, SortBy } from "../../types/paper";
-import { FilterProvider, type FilterSnapshot, useFilterContext } from "./active-filters";
+import type { Facets, SearchIn, SearchMode, SortBy } from "../../types/paper";
+import {
+	FilterProvider,
+	type FilterSnapshot,
+	useFilterContext,
+} from "./active-filters";
 import { EmptyState } from "./empty-state";
 import { FilterPanel } from "./filter-panel";
 import { PageSizeSelector } from "./page-size-selector";
@@ -41,11 +53,13 @@ function ActiveFiltersDisplay() {
 		authorFilter,
 		journalFilter,
 		keywordFilter,
+		sourceFilter,
 		yearFrom,
 		yearTo,
 		setAuthorFilter,
 		setJournalFilter,
 		setKeywordFilter,
+		setSourceFilter,
 		setYearRange,
 		YEAR_MIN,
 		YEAR_MAX,
@@ -81,6 +95,13 @@ function ActiveFiltersDisplay() {
 			label: keyword,
 			onRemove: () =>
 				setKeywordFilter(keywordFilter.filter((k) => k !== keyword)),
+		});
+	}
+
+	for (const source of sourceFilter) {
+		chips.push({
+			label: `Source: ${SOURCE_LABELS[source] ?? source}`,
+			onRemove: () => setSourceFilter(sourceFilter.filter((s) => s !== source)),
 		});
 	}
 
@@ -121,15 +142,21 @@ function SkeletonItem() {
 }
 
 interface SearchResultsContentProps {
+	field?: string;
 	onPageChange: (page: number) => void;
 	onPageSizeChange: (size: number) => void;
 	page: number;
 	pageSize: number;
 	query: string;
+	searchIn?: SearchIn;
+	searchMode?: SearchMode;
 }
 
 function SearchResultsContent({
 	query,
+	searchIn,
+	searchMode,
+	field,
 	page,
 	pageSize,
 	onPageChange,
@@ -140,6 +167,7 @@ function SearchResultsContent({
 		authorFilter,
 		journalFilter,
 		keywordFilter,
+		sourceFilter,
 		yearFrom,
 		yearTo,
 		sortBy,
@@ -155,19 +183,25 @@ function SearchResultsContent({
 	// When filters change, use page=1 immediately — don't wait for the async
 	// navigation from onPageReset to complete, which would fire one bad request
 	// with the old page number + new filters (causing a server 500).
-	const filterKey = `${authorFilter}|${sortBy}|${yearFrom}|${yearTo}|${journalFilter.join(",")}|${keywordFilter.join(",")}`;
+	const filterKey = `${authorFilter}|${sortBy}|${yearFrom}|${yearTo}|${journalFilter.join(",")}|${keywordFilter.join(",")}|${sourceFilter.join(",")}`;
 	const prevFilterKeyRef = useRef(filterKey);
 	const filterChanged = prevFilterKeyRef.current !== filterKey;
 	prevFilterKeyRef.current = filterKey;
 	const effectivePage = filterChanged ? 1 : page;
 
+	const isML = searchMode === "ml";
+
 	const { data, isLoading, isFetching, error } = useSearchPapers({
 		q: query,
+		searchIn,
+		searchMode,
+		field,
 		page: effectivePage,
 		pageSize,
 		authorFilter: authorFilter || undefined,
 		journalFilter: journalFilter.length > 0 ? journalFilter : undefined,
 		keywordFilter: keywordFilter.length > 0 ? keywordFilter : undefined,
+		sourceFilter: sourceFilter.length > 0 ? sourceFilter : undefined,
 		yearFrom: hasYearFilter ? yearFrom : undefined,
 		yearTo: hasYearFilter ? yearTo : undefined,
 		sortBy,
@@ -223,7 +257,17 @@ function SearchResultsContent({
 	const end = Math.min(page * pageSize, data.total);
 
 	return (
-		<div aria-atomic="false" aria-live="polite" className={`space-y-4 transition-opacity duration-150 ${isFetching ? "opacity-50" : "opacity-100"}`}>
+		<div
+			aria-atomic="false"
+			aria-live="polite"
+			className={`space-y-4 transition-opacity duration-150 ${isFetching ? "opacity-50" : "opacity-100"}`}
+		>
+			{isML && data.subqueries && data.subqueries.length > 0 && (
+				<div className="rounded-md border border-border/50 bg-muted/30 px-3 py-2 text-muted-foreground text-xs">
+					<span className="font-medium text-foreground">Expanded to: </span>
+					{data.subqueries.join(" · ")}
+				</div>
+			)}
 			<div className="flex flex-wrap items-center justify-between gap-2">
 				<p className="text-muted-foreground text-sm">
 					Showing {start}–{end} of {data.total} results
@@ -259,10 +303,12 @@ function SearchResultsContent({
 
 interface SearchResultsProps {
 	facets?: Facets;
+	field?: string;
 	initialFilters?: {
 		authorFilter?: string;
 		journalFilter?: string[];
 		keywordFilter?: string[];
+		sourceFilter?: string[];
 		yearFrom?: number;
 		yearTo?: number;
 		sortBy?: SortBy;
@@ -273,10 +319,15 @@ interface SearchResultsProps {
 	page: number;
 	pageSize: number;
 	query: string;
+	searchIn?: SearchIn;
+	searchMode?: SearchMode;
 }
 
 export function SearchResults({
 	query,
+	searchIn,
+	searchMode,
+	field,
 	page,
 	pageSize,
 	onPageChange,
@@ -285,14 +336,21 @@ export function SearchResults({
 	initialFilters = {},
 }: SearchResultsProps) {
 	return (
-		<FilterProvider onFiltersChange={onFiltersChange} onPageReset={() => onPageChange(1)} search={initialFilters}>
+		<FilterProvider
+			onFiltersChange={onFiltersChange}
+			onPageReset={() => onPageChange(1)}
+			search={initialFilters}
+		>
 			<FacetsProvider>
 				<SearchResultsLayout
+					field={field}
 					onPageChange={onPageChange}
 					onPageSizeChange={onPageSizeChange}
 					page={page}
 					pageSize={pageSize}
 					query={query}
+					searchIn={searchIn}
+					searchMode={searchMode}
 				/>
 			</FacetsProvider>
 		</FilterProvider>
@@ -301,6 +359,9 @@ export function SearchResults({
 
 function SearchResultsLayout({
 	query,
+	searchIn,
+	searchMode,
+	field,
 	page,
 	pageSize,
 	onPageChange,
@@ -314,11 +375,14 @@ function SearchResultsLayout({
 
 			<div className="min-w-0 flex-1">
 				<SearchResultsContent
+					field={field}
 					onPageChange={onPageChange}
 					onPageSizeChange={onPageSizeChange}
 					page={page}
 					pageSize={pageSize}
 					query={query}
+					searchIn={searchIn}
+					searchMode={searchMode}
 				/>
 			</div>
 		</div>

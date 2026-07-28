@@ -13,9 +13,10 @@ export interface FilterSnapshot {
 	authorFilter: string;
 	journalFilter: string[];
 	keywordFilter: string[];
+	sortBy: SortBy;
+	sourceFilter: string[];
 	yearFrom: number;
 	yearTo: number;
-	sortBy: SortBy;
 }
 
 interface FilterContextValue {
@@ -28,8 +29,10 @@ interface FilterContextValue {
 	setJournalFilter: (values: string[]) => void;
 	setKeywordFilter: (values: string[]) => void;
 	setSortBy: (value: SortBy) => void;
+	setSourceFilter: (values: string[]) => void;
 	setYearRange: (from: number, to: number) => void;
 	sortBy: SortBy;
+	sourceFilter: string[];
 	YEAR_MAX: number;
 	YEAR_MIN: number;
 	yearFrom: number;
@@ -54,6 +57,7 @@ interface FilterProviderProps {
 		authorFilter?: string;
 		journalFilter?: string[];
 		keywordFilter?: string[];
+		sourceFilter?: string[];
 		yearFrom?: number;
 		yearTo?: number;
 		sortBy?: SortBy;
@@ -63,13 +67,23 @@ interface FilterProviderProps {
 const YEAR_MIN = 1990;
 const YEAR_MAX = new Date().getFullYear();
 
-export function FilterProvider({ children, search, onPageReset, onFiltersChange }: FilterProviderProps) {
-	const [authorFilter, setAuthorFilterState] = useState(search.authorFilter ?? "");
+export function FilterProvider({
+	children,
+	search,
+	onPageReset,
+	onFiltersChange,
+}: FilterProviderProps) {
+	const [authorFilter, setAuthorFilterState] = useState(
+		search.authorFilter ?? ""
+	);
 	const [journalFilter, setJournalFilterState] = useState(
 		search.journalFilter ?? []
 	);
 	const [keywordFilter, setKeywordFilterState] = useState(
 		search.keywordFilter ?? []
+	);
+	const [sourceFilter, setSourceFilterState] = useState(
+		search.sourceFilter ?? []
 	);
 	const [yearFrom, setYearFrom] = useState(search.yearFrom ?? YEAR_MIN);
 	const [yearTo, setYearTo] = useState(search.yearTo ?? YEAR_MAX);
@@ -82,8 +96,24 @@ export function FilterProvider({ children, search, onPageReset, onFiltersChange 
 			mounted.current = true;
 			return;
 		}
-		onFiltersChange?.({ authorFilter, journalFilter, keywordFilter, yearFrom, yearTo, sortBy });
-	}, [authorFilter, journalFilter, keywordFilter, yearFrom, yearTo, sortBy]);
+		onFiltersChange?.({
+			authorFilter,
+			journalFilter,
+			keywordFilter,
+			sourceFilter,
+			yearFrom,
+			yearTo,
+			sortBy,
+		});
+	}, [
+		authorFilter,
+		journalFilter,
+		keywordFilter,
+		sourceFilter,
+		yearFrom,
+		yearTo,
+		sortBy,
+	]);
 
 	const activeFilterCount = useMemo(() => {
 		let count = 0;
@@ -95,8 +125,16 @@ export function FilterProvider({ children, search, onPageReset, onFiltersChange 
 		}
 		count += journalFilter.length;
 		count += keywordFilter.length;
+		count += sourceFilter.length;
 		return count;
-	}, [authorFilter, journalFilter, keywordFilter, yearFrom, yearTo]);
+	}, [
+		authorFilter,
+		journalFilter,
+		keywordFilter,
+		sourceFilter,
+		yearFrom,
+		yearTo,
+	]);
 
 	function setAuthorFilter(value: string) {
 		setAuthorFilterState(value);
@@ -113,6 +151,11 @@ export function FilterProvider({ children, search, onPageReset, onFiltersChange 
 		onPageReset?.();
 	}
 
+	function setSourceFilter(values: string[]) {
+		setSourceFilterState(values);
+		onPageReset?.();
+	}
+
 	function setYearRange(from: number, to: number) {
 		setYearFrom(from);
 		setYearTo(to);
@@ -123,6 +166,7 @@ export function FilterProvider({ children, search, onPageReset, onFiltersChange 
 		setAuthorFilterState("");
 		setJournalFilterState([]);
 		setKeywordFilterState([]);
+		setSourceFilterState([]);
 		setYearFrom(YEAR_MIN);
 		setYearTo(YEAR_MAX);
 		onPageReset?.();
@@ -132,6 +176,7 @@ export function FilterProvider({ children, search, onPageReset, onFiltersChange 
 		authorFilter,
 		journalFilter,
 		keywordFilter,
+		sourceFilter,
 		yearFrom,
 		yearTo,
 		sortBy,
@@ -139,6 +184,7 @@ export function FilterProvider({ children, search, onPageReset, onFiltersChange 
 		setAuthorFilter,
 		setJournalFilter,
 		setKeywordFilter,
+		setSourceFilter,
 		setYearRange,
 		setSortBy,
 		clearAllFilters,

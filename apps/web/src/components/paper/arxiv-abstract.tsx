@@ -16,7 +16,10 @@ function tokenize(text: string): Token[] {
 
 	while ((match = re.exec(text)) !== null) {
 		if (match.index > lastIndex) {
-			tokens.push({ type: "text", content: text.slice(lastIndex, match.index) });
+			tokens.push({
+				type: "text",
+				content: text.slice(lastIndex, match.index),
+			});
 		}
 		const full = match[0];
 		if (full.startsWith("$$")) {
@@ -83,8 +86,8 @@ function renderToken(token: Token): string {
 }
 
 interface ArxivAbstractProps {
-	text: string;
 	className?: string;
+	text: string;
 }
 
 export function ArxivAbstract({ text, className }: ArxivAbstractProps) {

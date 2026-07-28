@@ -2,6 +2,7 @@ import { Button } from "@scholar-seek/ui/components/button";
 import { Separator } from "@scholar-seek/ui/components/separator";
 import { ChevronDown, ChevronUp, SlidersHorizontal, X } from "lucide-react";
 import { useState } from "react";
+import { SOURCE_LABELS } from "../../lib/constants";
 import type { Facets } from "../../types/paper";
 import { useFilterContext } from "./active-filters";
 import { FacetList } from "./facets/facet-list";
@@ -17,12 +18,14 @@ function FilterContent({ facets }: FilterPanelProps) {
 		authorFilter,
 		journalFilter,
 		keywordFilter,
+		sourceFilter,
 		yearFrom,
 		yearTo,
 		activeFilterCount,
 		setAuthorFilter,
 		setJournalFilter,
 		setKeywordFilter,
+		setSourceFilter,
 		setYearRange,
 		clearAllFilters,
 		YEAR_MIN,
@@ -70,6 +73,25 @@ function FilterContent({ facets }: FilterPanelProps) {
 			</div>
 
 			<Separator />
+
+			{facets && facets.sources.length > 0 && (
+				<>
+					<FacetList
+						formatValue={(value) => SOURCE_LABELS[value] ?? value}
+						items={facets.sources}
+						onToggle={(value) => {
+							if (sourceFilter.includes(value)) {
+								setSourceFilter(sourceFilter.filter((s) => s !== value));
+							} else {
+								setSourceFilter([...sourceFilter, value]);
+							}
+						}}
+						selectedValues={sourceFilter}
+						title="Source"
+					/>
+					<Separator />
+				</>
+			)}
 
 			{facets && facets.journals.length > 0 ? (
 				<FacetList
@@ -134,7 +156,7 @@ export function FilterPanel({ facets }: FilterPanelProps) {
 
 			<aside
 				aria-label="Filters"
-				className={`w-full shrink-0 self-start lg:w-64 lg:sticky lg:top-4 ${
+				className={`w-full shrink-0 self-start lg:sticky lg:top-4 lg:w-64 ${
 					mobileOpen ? "block" : "hidden lg:block"
 				}`}
 			>

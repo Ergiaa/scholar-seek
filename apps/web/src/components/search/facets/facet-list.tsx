@@ -7,6 +7,7 @@ import { FacetItem } from "./facet-item";
 const DEFAULT_VISIBLE = 5;
 
 interface FacetListProps {
+	formatValue?: (value: string) => string;
 	items: FacetItemType[];
 	onToggle: (value: string) => void;
 	searchable?: boolean;
@@ -20,6 +21,7 @@ export function FacetList({
 	selectedValues,
 	onToggle,
 	searchable = false,
+	formatValue,
 }: FacetListProps) {
 	const [expanded, setExpanded] = useState(false);
 	const [searchTerm, setSearchTerm] = useState("");
@@ -68,6 +70,7 @@ export function FacetList({
 								checked={selectedValues.includes(item.value)}
 								count={item.count}
 								key={item.value}
+								label={formatValue?.(item.value)}
 								onToggle={onToggle}
 								value={item.value}
 							/>

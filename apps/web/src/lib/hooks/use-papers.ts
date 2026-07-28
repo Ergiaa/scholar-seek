@@ -13,12 +13,16 @@ export function useSearchPapers(params: SearchParams) {
 			const { data, error } = await api.api.papers.get({
 				query: {
 					q: params.q,
+					searchIn: params.searchIn,
+					searchMode: params.searchMode,
+					field: params.field,
 					page: params.page,
 					pageSize: params.pageSize,
 					sortBy: params.sortBy,
 					author: params.authorFilter,
 					journal: params.journalFilter,
 					keyword: params.keywordFilter,
+					source: params.sourceFilter,
 					yearFrom: params.yearFrom,
 					yearTo: params.yearTo,
 				},
@@ -40,6 +44,7 @@ export function useSearchPapers(params: SearchParams) {
 				page: data.page,
 				pageSize: data.pageSize,
 				facets: data.facets,
+				subqueries: data.subqueries,
 			};
 		},
 		enabled: !!params.q,
