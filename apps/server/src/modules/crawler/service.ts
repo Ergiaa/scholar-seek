@@ -38,7 +38,7 @@ export async function startCrawl(
 
 	const job = await getCrawlQueue().add(
 		"crawl",
-		{ source, options, historyId: historyRow.id },
+		{ kind: "crawl", source, options, historyId: historyRow.id },
 		{ jobId: historyRow.job_id }
 	);
 

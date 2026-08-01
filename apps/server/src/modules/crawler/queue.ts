@@ -1,191 +1,410 @@
 import { db } from "@scholar-seek/db";
 import { crawlHistory } from "@scholar-seek/db/schema/crawl-history";
+import {
+	crawlSchedule,
+	crawlScheduleRun,
+	crawlScheduleTarget,
+} from "@scholar-seek/db/schema/crawl-schedule";
 import { papers } from "@scholar-seek/db/schema/papers";
 import { env } from "@scholar-seek/env/server";
 import { Queue, Worker } from "bullmq";
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { cacheDel } from "../../lib/cache";
 import { getRedis } from "../../lib/redis";
-import { FIELDS_OF_STUDY } from "../papers/fields";
 import { arxivAdapter } from "./sources/arxiv";
 import { doajAdapter } from "./sources/doaj";
 import { semanticScholarAdapter } from "./sources/semantic-scholar";
 import type { CrawlOptions, SourceAdapter } from "./sources/types";
 
 async function triggerMlBackfill(): Promise<void> {
-  const url = `${env.ML_SERVICE_URL}/internal/backfill`;
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (env.ML_RELOAD_TOKEN) {
-    headers["X-Reload-Token"] = env.ML_RELOAD_TOKEN;
-  }
-  const res = await fetch(url, { method: "POST", headers });
-  if (!res.ok) {
-    throw new Error(`ML backfill returned ${res.status}`);
-  }
-  console.log("[crawler] ML backfill triggered");
+	const url = `${env.ML_SERVICE_URL}/internal/backfill`;
+	const headers: Record<string, string> = {
+		"Content-Type": "application/json",
+	};
+	if (env.ML_RELOAD_TOKEN) {
+		headers["X-Reload-Token"] = env.ML_RELOAD_TOKEN;
+	}
+	const res = await fetch(url, { method: "POST", headers });
+	if (!res.ok) {
+		throw new Error(`ML backfill returned ${res.status}`);
+	}
+	console.log("[crawler] ML backfill triggered");
 }
 
-export interface CrawlJobData {
-  /** UUID of the crawl_history row. Created by the service before enqueuing. */
-  historyId: string;
-  options: CrawlOptions;
-  source: string;
-}
+export type CrawlJobData =
+	| {
+			kind: "crawl";
+			historyId: string;
+			source: string;
+			options: CrawlOptions;
+			runId?: string;
+	  }
+	| {
+			kind: "trigger";
+			scheduleId: string;
+			triggeredBy: string | null;
+	  };
 
 const QUEUE_NAME = "crawl-jobs";
+// Page size is fixed at 100 records/request across every adapter, and each
+// request is throttled to ~1.1s — so total requests is the one number that
+// actually predicts how long (and how heavy) a plan is.
+const RECORDS_PER_REQUEST = 100;
 
 const adapters: Record<string, SourceAdapter> = {
-  arxiv: arxivAdapter,
-  semantic_scholar: semanticScholarAdapter,
-  doaj: doajAdapter,
+	arxiv: arxivAdapter,
+	semantic_scholar: semanticScholarAdapter,
+	doaj: doajAdapter,
 };
 
 let queue: Queue<CrawlJobData> | null = null;
 
 export function getCrawlQueue(): Queue<CrawlJobData> {
-  if (!queue) {
-    queue = new Queue<CrawlJobData>(QUEUE_NAME, {
-      connection: getRedis(),
-      defaultJobOptions: {
-        attempts: 2,
-        backoff: { type: "exponential", delay: 5000 },
-        removeOnComplete: 200,
-        removeOnFail: 100,
-      },
-    });
-  }
-  return queue;
+	if (!queue) {
+		queue = new Queue<CrawlJobData>(QUEUE_NAME, {
+			connection: getRedis(),
+			defaultJobOptions: {
+				attempts: 2,
+				backoff: { type: "exponential", delay: 5000 },
+				removeOnComplete: 200,
+				removeOnFail: 100,
+			},
+		});
+	}
+	return queue;
+}
+
+export function estimateTotalRequests(
+	targets: { max_records: number }[]
+): number {
+	return targets.reduce(
+		(sum, t) => sum + Math.ceil(t.max_records / RECORDS_PER_REQUEST),
+		0
+	);
 }
 
 async function processJob(
-  historyId: string,
-  source: string,
-  options: CrawlOptions
-): Promise<void> {
-  const adapter = adapters[source];
-  if (!adapter) {
-    throw new Error(`Unknown source: ${source}`);
-  }
+	historyId: string,
+	source: string,
+	options: CrawlOptions
+): Promise<{ papersInserted: number }> {
+	const adapter = adapters[source];
+	if (!adapter) {
+		throw new Error(`Unknown source: ${source}`);
+	}
 
-  let papersFound = 0;
-  let papersInserted = 0;
-  let papersSkipped = 0;
-  const errors: string[] = [];
+	let papersFound = 0;
+	let papersInserted = 0;
+	let papersSkipped = 0;
+	const errors: string[] = [];
 
-  try {
-    for await (const batch of adapter.crawl(options)) {
-      papersFound += batch.length;
+	try {
+		for await (const batch of adapter.crawl(options)) {
+			papersFound += batch.length;
 
-      try {
-        const result = await db
-          .insert(papers)
-          .values(batch)
-          .onConflictDoUpdate({
-            target: [papers.source, papers.source_id],
-            set: {
-              title: sql`excluded.title`,
-              authors: sql`excluded.authors`,
-              // COALESCE so a source that lacks a field (e.g. Semantic
-              // Scholar records without abstracts) can't null out data
-              // another source already provided for the same paper.
-              abstract: sql`COALESCE(excluded.abstract, ${papers.abstract})`,
-              keywords: sql`COALESCE(excluded.keywords, ${papers.keywords})`,
-              published_at: sql`COALESCE(excluded.published_at, ${papers.published_at})`,
-              journal: sql`COALESCE(excluded.journal, ${papers.journal})`,
-              doi: sql`COALESCE(excluded.doi, ${papers.doi})`,
-              // Citation counts only grow — GREATEST prevents sources that
-              // don't know them (arXiv OAI reports 0) from wiping enriched
-              // values written by Semantic Scholar.
-              citation_count: sql`GREATEST(${papers.citation_count}, excluded.citation_count)`,
-            },
-          })
-          .returning({ id: papers.id });
+			try {
+				const result = await db
+					.insert(papers)
+					.values(batch)
+					.onConflictDoUpdate({
+						target: [papers.source, papers.source_id],
+						set: {
+							title: sql`excluded.title`,
+							authors: sql`excluded.authors`,
+							// COALESCE so a source that lacks a field (e.g. Semantic
+							// Scholar records without abstracts) can't null out data
+							// another source already provided for the same paper.
+							abstract: sql`COALESCE(excluded.abstract, ${papers.abstract})`,
+							keywords: sql`COALESCE(excluded.keywords, ${papers.keywords})`,
+							published_at: sql`COALESCE(excluded.published_at, ${papers.published_at})`,
+							journal: sql`COALESCE(excluded.journal, ${papers.journal})`,
+							doi: sql`COALESCE(excluded.doi, ${papers.doi})`,
+							// Citation counts only grow — GREATEST prevents sources that
+							// don't know them (arXiv OAI reports 0) from wiping enriched
+							// values written by Semantic Scholar.
+							citation_count: sql`GREATEST(${papers.citation_count}, excluded.citation_count)`,
+						},
+					})
+					.returning({ id: papers.id });
 
-        papersInserted += result.length;
-        papersSkipped += batch.length - result.length;
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        errors.push(`Batch insert failed: ${msg}`);
-        papersSkipped += batch.length;
-      }
+				papersInserted += result.length;
+				papersSkipped += batch.length - result.length;
+			} catch (err) {
+				const msg = err instanceof Error ? err.message : String(err);
+				errors.push(`Batch insert failed: ${msg}`);
+				papersSkipped += batch.length;
+			}
 
-      // Update progress in DB periodically
-      await db
-        .update(crawlHistory)
-        .set({
-          papers_found: papersFound,
-          papers_inserted: papersInserted,
-          papers_skipped: papersSkipped,
-        })
-        .where(eq(crawlHistory.id, historyId));
-    }
+			// Update progress in DB periodically
+			await db
+				.update(crawlHistory)
+				.set({
+					papers_found: papersFound,
+					papers_inserted: papersInserted,
+					papers_skipped: papersSkipped,
+				})
+				.where(eq(crawlHistory.id, historyId));
+		}
 
-    const completedAt = new Date();
-    const startedRow = await db
-      .select({ started_at: crawlHistory.started_at })
-      .from(crawlHistory)
-      .where(eq(crawlHistory.id, historyId));
+		const completedAt = new Date();
+		const startedRow = await db
+			.select({ started_at: crawlHistory.started_at })
+			.from(crawlHistory)
+			.where(eq(crawlHistory.id, historyId));
 
-    const startedAt = startedRow[0]?.started_at ?? completedAt;
-    const durationMs = completedAt.getTime() - startedAt.getTime();
+		const startedAt = startedRow[0]?.started_at ?? completedAt;
+		const durationMs = completedAt.getTime() - startedAt.getTime();
 
-    await db
-      .update(crawlHistory)
-      .set({
-        status:
-          errors.length > 0 && papersInserted === 0 ? "failed" : "completed",
-        completed_at: completedAt,
-        papers_found: papersFound,
-        papers_inserted: papersInserted,
-        papers_skipped: papersSkipped,
-        errors: errors.length > 0 ? errors : null,
-        duration_ms: durationMs,
-      })
-      .where(eq(crawlHistory.id, historyId));
+		await db
+			.update(crawlHistory)
+			.set({
+				status:
+					errors.length > 0 && papersInserted === 0 ? "failed" : "completed",
+				completed_at: completedAt,
+				papers_found: papersFound,
+				papers_inserted: papersInserted,
+				papers_skipped: papersSkipped,
+				errors: errors.length > 0 ? errors : null,
+				duration_ms: durationMs,
+			})
+			.where(eq(crawlHistory.id, historyId));
 
-    // Invalidate paper search/journals caches now that new data exists
-    await cacheDel("papers:*");
-    await cacheDel("journals:*");
+		// Invalidate paper search/journals caches now that new data exists
+		await cacheDel("papers:*");
+		await cacheDel("journals:*");
 
-    if (papersInserted > 0) {
-      triggerMlBackfill().catch((err: unknown) => {
-        console.warn("[crawler] ML backfill trigger failed:", err instanceof Error ? err.message : String(err));
-      });
-    }
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+		return { papersInserted };
+	} catch (err) {
+		const msg = err instanceof Error ? err.message : String(err);
 
-    await db
-      .update(crawlHistory)
-      .set({
-        status: "failed",
-        completed_at: new Date(),
-        papers_found: papersFound,
-        papers_inserted: papersInserted,
-        papers_skipped: papersSkipped,
-        errors: [...errors, msg],
-      })
-      .where(eq(crawlHistory.id, historyId));
+		await db
+			.update(crawlHistory)
+			.set({
+				status: "failed",
+				completed_at: new Date(),
+				papers_found: papersFound,
+				papers_inserted: papersInserted,
+				papers_skipped: papersSkipped,
+				errors: [...errors, msg],
+			})
+			.where(eq(crawlHistory.id, historyId));
 
-    throw err;
-  }
+		throw err;
+	}
 }
 
-async function getLastSuccessfulCrawlDate(
-  source: string
+async function getLastSuccessfulCrawlDateForSchedule(
+	scheduleId: string
 ): Promise<string | undefined> {
-  const rows = await db
-    .select({ completed_at: crawlHistory.completed_at })
-    .from(crawlHistory)
-    .where(eq(crawlHistory.source, source))
-    .orderBy(desc(crawlHistory.started_at))
-    .limit(1);
+	const rows = await db
+		.select({ completed_at: crawlHistory.completed_at })
+		.from(crawlHistory)
+		.where(
+			and(
+				eq(crawlHistory.schedule_id, scheduleId),
+				eq(crawlHistory.status, "completed")
+			)
+		)
+		.orderBy(desc(crawlHistory.started_at))
+		.limit(1);
 
-  const date = rows[0]?.completed_at;
-  if (!date) {
-    return undefined;
-  }
-  return date.toISOString().slice(0, 10);
+	const date = rows[0]?.completed_at;
+	return date ? date.toISOString().slice(0, 10) : undefined;
+}
+
+/**
+ * Fans a schedule out into one crawl job per target. Called both by the
+ * worker's "trigger" job handler (cron tick, triggeredBy = null) and
+ * directly by the run-now API path (manual, triggeredBy = the acting
+ * user's id) — this is the only place fan-out logic lives.
+ *
+ * A disabled schedule blocks the cron path (it exists to pause exactly
+ * that) but not a manual run — disabling pauses automatic firing, it
+ * isn't a lock on the schedule's configuration.
+ */
+export async function runSchedule(
+	scheduleId: string,
+	triggeredBy: string | null
+): Promise<{ runId: string } | null> {
+	const [schedule] = await db
+		.select()
+		.from(crawlSchedule)
+		.where(
+			and(eq(crawlSchedule.id, scheduleId), isNull(crawlSchedule.deleted_at))
+		);
+	if (!schedule || (triggeredBy === null && !schedule.enabled)) {
+		console.warn(
+			`[crawler] skipping trigger for schedule ${scheduleId} — missing, deleted, or disabled`
+		);
+		return null;
+	}
+
+	const [activeRun] = await db
+		.select({ id: crawlScheduleRun.id })
+		.from(crawlScheduleRun)
+		.where(
+			and(
+				eq(crawlScheduleRun.schedule_id, scheduleId),
+				eq(crawlScheduleRun.status, "running")
+			)
+		);
+	if (activeRun) {
+		console.warn(
+			`[crawler] skipping trigger for schedule ${scheduleId} — a run is already in progress`
+		);
+		return null;
+	}
+
+	const targets = await db
+		.select()
+		.from(crawlScheduleTarget)
+		.where(eq(crawlScheduleTarget.schedule_id, scheduleId));
+	if (targets.length === 0) {
+		console.warn(
+			`[crawler] skipping trigger for schedule ${scheduleId} — no targets configured`
+		);
+		return null;
+	}
+
+	const since = await getLastSuccessfulCrawlDateForSchedule(scheduleId);
+	const totalRequestsEstimate = estimateTotalRequests(targets);
+
+	const [run] = await db
+		.insert(crawlScheduleRun)
+		.values({
+			schedule_id: scheduleId,
+			triggered_by: triggeredBy,
+			target_count: targets.length,
+			total_requests_estimate: totalRequestsEstimate,
+		})
+		.returning();
+
+	if (!run) {
+		throw new Error("Failed to create crawl_schedule_run record");
+	}
+
+	const q = getCrawlQueue();
+	for (const target of targets) {
+		const options: CrawlOptions = {
+			query: target.query ?? undefined,
+			categories: target.categories ?? undefined,
+			maxRecords: target.max_records,
+			since,
+		};
+
+		const [historyRow] = await db
+			.insert(crawlHistory)
+			.values({
+				job_id: crypto.randomUUID(),
+				source: schedule.source,
+				status: "running",
+				options,
+				schedule_id: scheduleId,
+				run_id: run.id,
+			})
+			.returning({ id: crawlHistory.id, job_id: crawlHistory.job_id });
+
+		if (!historyRow) {
+			continue;
+		}
+
+		await q.add(
+			"crawl",
+			{
+				kind: "crawl",
+				historyId: historyRow.id,
+				source: schedule.source,
+				options,
+				runId: run.id,
+			},
+			{ jobId: historyRow.job_id }
+		);
+	}
+
+	console.log(
+		`[crawler] schedule "${schedule.name}" fanned out into ${targets.length} job(s), run=${run.id}, ~${totalRequestsEstimate} requests`
+	);
+
+	return { runId: run.id };
+}
+
+/**
+ * Called after every crawl job that belongs to a schedule run. Once every
+ * target has reported in, marks the run complete and fires the ML backfill
+ * exactly once — the endpoint has no payload, so calling it per-job would
+ * just be N redundant full-catalogue scans.
+ */
+async function recordRunProgress(runId: string): Promise<void> {
+	const [updated] = await db
+		.update(crawlScheduleRun)
+		.set({ completed_count: sql`${crawlScheduleRun.completed_count} + 1` })
+		.where(eq(crawlScheduleRun.id, runId))
+		.returning({
+			completed_count: crawlScheduleRun.completed_count,
+			target_count: crawlScheduleRun.target_count,
+			status: crawlScheduleRun.status,
+		});
+
+	if (!updated || updated.status !== "running") {
+		return;
+	}
+	if (updated.completed_count < updated.target_count) {
+		return;
+	}
+
+	await db
+		.update(crawlScheduleRun)
+		.set({ status: "completed", completed_at: new Date() })
+		.where(eq(crawlScheduleRun.id, runId));
+
+	const [totals] = await db
+		.select({
+			total: sql<number>`COALESCE(SUM(${crawlHistory.papers_inserted}), 0)`,
+		})
+		.from(crawlHistory)
+		.where(eq(crawlHistory.run_id, runId));
+
+	if (Number(totals?.total ?? 0) > 0) {
+		triggerMlBackfill().catch((err: unknown) => {
+			console.warn(
+				"[crawler] ML backfill trigger failed:",
+				err instanceof Error ? err.message : String(err)
+			);
+		});
+	}
+}
+
+/**
+ * Removes not-yet-started jobs for a run from the queue (used by "cancel
+ * run"). Any job already executing finishes naturally.
+ */
+export async function removeQueuedRunJobs(runId: string): Promise<string[]> {
+	const q = getCrawlQueue();
+	const pending = await q.getJobs(["waiting", "delayed"]);
+	const removedHistoryIds: string[] = [];
+	for (const job of pending) {
+		if (job.data.kind === "crawl" && job.data.runId === runId) {
+			await job.remove();
+			removedHistoryIds.push(job.data.historyId);
+		}
+	}
+	return removedHistoryIds;
+}
+
+/**
+ * Explicitly removes a schedule's repeatable trigger job. Used on delete —
+ * a soft-deleted schedule drops out of reconcileSchedules()'s view entirely,
+ * so its BullMQ registration would otherwise sit there as an unrecognized
+ * "orphan" that reconciliation deliberately never touches. Deletion has to
+ * be the one place that removes it, on purpose, explicitly.
+ */
+export async function removeScheduleTrigger(scheduleId: string): Promise<void> {
+	const q = getCrawlQueue();
+	const jobs = await q.getRepeatableJobs();
+	const match = jobs.find((j) => j.id === scheduleId);
+	if (match) {
+		await q.removeRepeatableByKey(match.key);
+	}
 }
 
 /**
@@ -193,186 +412,158 @@ async function getLastSuccessfulCrawlDate(
  * was killed mid-crawl. Mark them failed so they don't appear stuck forever.
  */
 export async function cleanupStuckJobs(): Promise<void> {
-  const stuck = await db
-    .update(crawlHistory)
-    .set({
-      status: "failed",
-      completed_at: new Date(),
-      errors: ["Server stopped unexpectedly — crawl was interrupted"],
-    })
-    .where(eq(crawlHistory.status, "running"))
-    .returning({ id: crawlHistory.id, source: crawlHistory.source });
+	const stuck = await db
+		.update(crawlHistory)
+		.set({
+			status: "failed",
+			completed_at: new Date(),
+			errors: ["Server stopped unexpectedly — crawl was interrupted"],
+		})
+		.where(eq(crawlHistory.status, "running"))
+		.returning({ id: crawlHistory.id, source: crawlHistory.source });
 
-  if (stuck.length > 0) {
-    console.warn(
-      `[crawler] marked ${stuck.length} interrupted job(s) as failed:`,
-      stuck.map((r) => r.id).join(", ")
-    );
-  }
+	if (stuck.length > 0) {
+		console.warn(
+			`[crawler] marked ${stuck.length} interrupted job(s) as failed:`,
+			stuck.map((r) => r.id).join(", ")
+		);
+	}
+
+	// Any schedule_run left "running" is in the same boat — nothing left to
+	// finish it, so it would otherwise block that schedule forever.
+	const stuckRuns = await db
+		.update(crawlScheduleRun)
+		.set({ status: "failed", completed_at: new Date() })
+		.where(eq(crawlScheduleRun.status, "running"))
+		.returning({ id: crawlScheduleRun.id });
+
+	if (stuckRuns.length > 0) {
+		console.warn(
+			`[crawler] marked ${stuckRuns.length} interrupted schedule run(s) as failed`
+		);
+	}
 }
 
 let worker: Worker<CrawlJobData> | null = null;
 
 export async function stopCrawlWorker(): Promise<void> {
-  if (!worker) {
-    return;
-  }
-  console.log(
-    "[crawler] shutting down worker — waiting for current batch to finish..."
-  );
-  await worker.close();
-  worker = null;
-  console.log("[crawler] worker stopped");
+	if (!worker) {
+		return;
+	}
+	console.log(
+		"[crawler] shutting down worker — waiting for current batch to finish..."
+	);
+	await worker.close();
+	worker = null;
+	console.log("[crawler] worker stopped");
 }
 
 export function startCrawlWorker(): void {
-  if (worker) {
-    return;
-  }
+	if (worker) {
+		return;
+	}
 
-  worker = new Worker<CrawlJobData>(
-    QUEUE_NAME,
-    async (job) => {
-      let { source, options, historyId } = job.data;
-      console.log(`[crawler] starting job ${job.id} — source=${source}`);
+	worker = new Worker<CrawlJobData>(
+		QUEUE_NAME,
+		async (job) => {
+			if (job.data.kind === "trigger") {
+				const { scheduleId, triggeredBy } = job.data;
+				console.log(`[crawler] trigger fired for schedule ${scheduleId}`);
+				await runSchedule(scheduleId, triggeredBy);
+				return;
+			}
 
-      // Auto-scheduled jobs don't have a pre-created history record
-      if (historyId === "__auto__") {
-        const resolved = await createAutoHistoryRecord(source, options);
-        historyId = resolved.historyId;
-        options = resolved.options;
-      }
+			const { source, options, historyId, runId } = job.data;
+			console.log(`[crawler] starting job ${job.id} — source=${source}`);
 
-      await processJob(historyId, source, options);
-      console.log(`[crawler] completed job ${job.id}`);
-    },
-    {
-      connection: getRedis(),
-      concurrency: 1,
-    }
-  );
+			try {
+				await processJob(historyId, source, options);
+				if (runId) {
+					await recordRunProgress(runId);
+				}
+			} catch (err) {
+				// A failed attempt only counts toward the run once BullMQ won't
+				// retry it again — otherwise a job that fails once and retries
+				// increments completed_count twice for the same target.
+				const maxAttempts = job.opts.attempts ?? 1;
+				const isFinalAttempt = job.attemptsMade + 1 >= maxAttempts;
+				if (runId && isFinalAttempt) {
+					await recordRunProgress(runId);
+				}
+				throw err;
+			}
+			console.log(`[crawler] completed job ${job.id}`);
+		},
+		{
+			connection: getRedis(),
+			concurrency: 1,
+		}
+	);
 
-  worker.on("failed", (job, err) => {
-    console.error(`[crawler] job ${job?.id} failed:`, err.message);
-  });
+	worker.on("failed", (job, err) => {
+		console.error(`[crawler] job ${job?.id} failed:`, err.message);
+	});
 
-  // Register daily production crawls via repeatable jobs
-  if (env.NODE_ENV === "production") {
-    scheduleRecurringCrawls().catch((err) => {
-      console.error("[crawler] failed to register daily jobs:", err);
-    });
-  }
-}
-
-interface RecurringCrawlConfig {
-  jobName: string;
-  source: string;
-  pattern: string;
-}
-
-// Staggered five minutes apart so the single-concurrency worker isn't asked
-// to start multiple crawls at once.
-const RECURRING_CRAWLS: RecurringCrawlConfig[] = [
-  { jobName: "daily-arxiv-trigger", source: "arxiv", pattern: "25 3 * * *" },
-  { jobName: "daily-doaj-trigger", source: "doaj", pattern: "30 3 * * *" },
-  {
-    jobName: "daily-semantic-scholar-trigger",
-    source: "semantic_scholar",
-    pattern: "35 3 * * *",
-  },
-];
-
-async function scheduleRecurringCrawls(): Promise<void> {
-  const q = getCrawlQueue();
-  const now = new Date();
-  console.log(
-    `[crawler] registering daily jobs at ${now.toISOString()} (local: ${now.toLocaleString()})`
-  );
-
-  // Remove any existing managed repeatable jobs regardless of their pattern.
-  const managedNames = new Set(RECURRING_CRAWLS.map((c) => c.jobName));
-  const repeatableJobs = await q.getRepeatableJobs();
-  const stale = repeatableJobs.filter((j) => managedNames.has(j.name));
-  if (stale.length > 0) {
-    console.log(
-      `[crawler] removing ${stale.length} stale daily job(s):`,
-      stale.map((j) => `${j.name} @ ${j.pattern}`)
-    );
-    await Promise.all(stale.map((j) => q.removeRepeatableByKey(j.key)));
-  } else {
-    console.log("[crawler] no stale daily jobs found");
-  }
-
-  for (const config of RECURRING_CRAWLS) {
-    await q.add(
-      config.jobName,
-      { source: config.source, options: {}, historyId: "__auto__" },
-      {
-        repeat: { pattern: config.pattern },
-        jobId: config.jobName,
-      }
-    );
-    console.log(
-      `[crawler] daily job registered — source=${config.source}, pattern="${config.pattern}", jobId=${config.jobName}`
-    );
-  }
-
-  // Log next run times from the repeatable job registry
-  const registered = await q.getRepeatableJobs();
-  for (const config of RECURRING_CRAWLS) {
-    const job = registered.find((j) => j.name === config.jobName);
-    if (job?.next) {
-      const next = new Date(job.next);
-      console.log(
-        `[crawler] next run for ${config.source} scheduled at ${next.toISOString()} (local: ${next.toLocaleString()})`
-      );
-    }
-  }
-}
-
-function dayOfYear(date: Date): number {
-  const start = Date.UTC(date.getUTCFullYear(), 0, 0);
-  return Math.floor((date.getTime() - start) / 86_400_000);
+	reconcileSchedules().catch((err) => {
+		console.error("[crawler] failed to reconcile schedules:", err);
+	});
 }
 
 /**
- * Semantic Scholar's bulk search requires a non-empty query, unlike arXiv/DOAJ
- * which can crawl everything since the last run. Auto-scheduled jobs rotate
- * through one field of study per day so the recurring crawl eventually covers
- * the whole catalogue instead of always the same slice.
+ * Registers a repeatable "trigger" job for every enabled, non-deleted
+ * schedule and removes the BullMQ registration for any schedule that's
+ * been explicitly disabled. Register-only otherwise: a repeatable job
+ * with no matching schedule row at all is logged as an orphan, never
+ * auto-removed — see the design discussion on undeletable state.
  */
-function autoSemanticScholarQuery(): { categories: string[]; query: string } {
-  const field = FIELDS_OF_STUDY[dayOfYear(new Date()) % FIELDS_OF_STUDY.length] as string;
-  return { query: field, categories: [field] };
-}
+export async function reconcileSchedules(): Promise<void> {
+	const q = getCrawlQueue();
+	const schedules = await db
+		.select()
+		.from(crawlSchedule)
+		.where(isNull(crawlSchedule.deleted_at));
+	const repeatableJobs = await q.getRepeatableJobs();
+	const repeatableById = new Map(
+		repeatableJobs.filter((j) => j.id).map((j) => [j.id as string, j])
+	);
+	const knownScheduleIds = new Set(schedules.map((s) => s.id));
 
-/**
- * Called by the auto-scheduled worker before processJob when historyId === "__auto__".
- * Creates a fresh crawl_history row using the last successful crawl date as `since`.
- */
-export async function createAutoHistoryRecord(
-  source: string,
-  options: CrawlOptions
-): Promise<{ historyId: string; options: CrawlOptions }> {
-  const since = await getLastSuccessfulCrawlDate(source);
-  const sourceDefaults =
-    source === "semantic_scholar" && !options.query?.trim()
-      ? autoSemanticScholarQuery()
-      : {};
-  const resolvedOptions: CrawlOptions = { ...sourceDefaults, ...options, since };
+	for (const schedule of schedules) {
+		const existing = repeatableById.get(schedule.id);
 
-  const [row] = await db
-    .insert(crawlHistory)
-    .values({
-      job_id: crypto.randomUUID(),
-      source,
-      status: "running",
-      options: resolvedOptions,
-    })
-    .returning({ id: crawlHistory.id });
+		if (!schedule.enabled) {
+			if (existing) {
+				await q.removeRepeatableByKey(existing.key);
+				console.log(
+					`[crawler] removed repeatable trigger for disabled schedule "${schedule.name}"`
+				);
+			}
+			continue;
+		}
 
-  if (!row) {
-    throw new Error("Failed to create crawl_history record");
-  }
-  return { historyId: row.id, options: resolvedOptions };
+		if (existing && existing.pattern === schedule.cron_pattern) {
+			continue;
+		}
+
+		if (existing) {
+			await q.removeRepeatableByKey(existing.key);
+		}
+
+		await q.add(
+			"trigger",
+			{ kind: "trigger", scheduleId: schedule.id, triggeredBy: null },
+			{ repeat: { pattern: schedule.cron_pattern }, jobId: schedule.id }
+		);
+		console.log(
+			`[crawler] registered trigger for schedule "${schedule.name}" (${schedule.source}) @ ${schedule.cron_pattern}`
+		);
+	}
+
+	for (const job of repeatableJobs) {
+		if (job.id && !knownScheduleIds.has(job.id)) {
+			console.warn(
+				`[crawler] orphaned repeatable job (no matching schedule): name=${job.name} id=${job.id} pattern=${job.pattern}`
+			);
+		}
+	}
 }
