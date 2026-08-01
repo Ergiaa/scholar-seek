@@ -2,7 +2,7 @@ name: scholar-seek
 
 services:
   postgres:
-    image: postgres
+    image: pgvector/pgvector:pg17
     container_name: scholar-seek-postgres
     environment:
       POSTGRES_DB: scholar-seek
