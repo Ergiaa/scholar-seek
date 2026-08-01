@@ -6,7 +6,6 @@ import {
 	Outlet,
 	Scripts,
 } from "@tanstack/react-router";
-import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
 import { Footer } from "../components/layout/footer";
 import Header from "../components/layout/header";
@@ -96,7 +95,6 @@ function RootDocument() {
 					<Footer />
 				</div>
 				<Toaster richColors />
-				<TanStackRouterDevtools position="bottom-left" />
 				<Scripts />
 			</body>
 		</html>
