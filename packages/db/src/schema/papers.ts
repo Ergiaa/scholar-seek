@@ -19,7 +19,9 @@ export const papers = pgTable(
 		abstract: text("abstract"),
 		authors: jsonb("authors").$type<string[]>().notNull().default([]),
 		published_at: timestamp("published_at", { withTimezone: true }),
-		journal: varchar("journal", { length: 255 }),
+		// text, not varchar — some arXiv journal-ref values run past 255 chars
+		// and previously broke the whole batch insert on conflict.
+		journal: text("journal"),
 		doi: varchar("doi", { length: 255 }).unique(),
 		keywords: jsonb("keywords").$type<string[]>(),
 		canonical_categories: jsonb("canonical_categories").$type<string[]>(),

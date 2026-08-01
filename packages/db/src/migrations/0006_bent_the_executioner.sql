@@ -1,0 +1,1 @@
+ALTER TABLE "papers" ALTER COLUMN "journal" SET DATA TYPE text;
