@@ -55,3 +55,110 @@ export const CrawlHistoryQuery = t.Object({
 export type CrawlOptionsBodyType = typeof CrawlOptionsBody.static;
 export type StartCrawlResponseType = typeof StartCrawlResponse.static;
 export type CrawlStatusResponseType = typeof CrawlStatusResponse.static;
+
+// --- Schedule management ---
+
+export const ScheduleTargetBody = t.Object({
+	label: t.String({ minLength: 1, maxLength: 255 }),
+	query: t.Optional(t.String({ maxLength: 300 })),
+	categories: t.Optional(
+		t.Array(t.String({ maxLength: 50 }), { maxItems: 20 })
+	),
+	maxRecords: t.Number({ minimum: 1, maximum: 50_000 }),
+});
+
+export const CreateScheduleBody = t.Object({
+	name: t.String({ minLength: 1, maxLength: 255 }),
+	source: CrawlSource,
+	cronPattern: t.String({ minLength: 1, maxLength: 100 }),
+	targets: t.Array(ScheduleTargetBody, { minItems: 1, maxItems: 100 }),
+});
+
+export const UpdateScheduleBody = t.Object({
+	name: t.Optional(t.String({ minLength: 1, maxLength: 255 })),
+	cronPattern: t.Optional(t.String({ minLength: 1, maxLength: 100 })),
+	enabled: t.Optional(t.Boolean()),
+	targets: t.Optional(t.Array(ScheduleTargetBody, { minItems: 1, maxItems: 100 })),
+});
+
+export const ScheduleIdParams = t.Object({
+	id: t.String(),
+});
+
+export const RunIdParams = t.Object({
+	runId: t.String(),
+});
+
+export const ScheduleTargetResponse = t.Object({
+	id: t.String(),
+	label: t.String(),
+	query: t.Union([t.String(), t.Null()]),
+	categories: t.Union([t.Array(t.String()), t.Null()]),
+	maxRecords: t.Number(),
+});
+
+export const ScheduleResponse = t.Object({
+	id: t.String(),
+	name: t.String(),
+	source: t.String(),
+	cronPattern: t.String(),
+	enabled: t.Boolean(),
+	createdBy: t.Union([t.String(), t.Null()]),
+	createdAt: t.String(),
+	updatedAt: t.String(),
+	targets: t.Array(ScheduleTargetResponse),
+	lastRun: t.Union([
+		t.Object({
+			id: t.String(),
+			status: t.String(),
+			startedAt: t.String(),
+			completedAt: t.Union([t.String(), t.Null()]),
+		}),
+		t.Null(),
+	]),
+});
+
+export const RunEstimateResponse = t.Object({
+	scheduleId: t.String(),
+	targetCount: t.Number(),
+	totalRequestsEstimate: t.Number(),
+	estimatedSeconds: t.Number(),
+	requiresOverride: t.Boolean(),
+	sharedPoolWarning: t.Boolean(),
+});
+
+export const ErrorResponse = t.Object({ error: t.String() });
+
+export const OverrideRequiredResponse = t.Object({
+	error: t.String(),
+	scheduleId: t.String(),
+	targetCount: t.Number(),
+	totalRequestsEstimate: t.Number(),
+	estimatedSeconds: t.Number(),
+	requiresOverride: t.Boolean(),
+	sharedPoolWarning: t.Boolean(),
+});
+
+export const RunNowBody = t.Object({
+	override: t.Optional(t.Boolean()),
+});
+
+export const RunResponse = t.Object({
+	id: t.String(),
+	scheduleId: t.String(),
+	status: t.String(),
+	targetCount: t.Number(),
+	completedCount: t.Number(),
+	failedCount: t.Number(),
+	totalRequestsEstimate: t.Number(),
+	startedAt: t.String(),
+	completedAt: t.Union([t.String(), t.Null()]),
+	cancelledAt: t.Union([t.String(), t.Null()]),
+});
+
+export type ScheduleTargetBodyType = typeof ScheduleTargetBody.static;
+export type CreateScheduleBodyType = typeof CreateScheduleBody.static;
+export type UpdateScheduleBodyType = typeof UpdateScheduleBody.static;
+export type ScheduleResponseType = typeof ScheduleResponse.static;
+export type RunEstimateResponseType = typeof RunEstimateResponse.static;
+export type RunResponseType = typeof RunResponse.static;

@@ -24,6 +24,9 @@ export const env = createEnv({
 		ML_SERVICE_URL: z.string().url().optional().default("http://localhost:8000"),
 		// Optional — shared secret for ML service internal endpoints
 		ML_RELOAD_TOKEN: z.string().min(1).optional(),
+		// Above this many estimated requests, a manual "run now" needs an
+		// explicit override (unless triggered by the root admin).
+		CRAWL_RUN_SOFT_THRESHOLD_REQUESTS: z.coerce.number().int().positive().default(300),
 	},
 	runtimeEnv: process.env,
 	emptyStringAsUndefined: true,

@@ -13,6 +13,13 @@ import { papersModule } from "./modules/papers";
 
 const app = new Elysia()
 	.onError(({ code, error, set }) => {
+		// A thrown/returned status(code, body) surfaces here with the numeric
+		// status as `code` and the body under `error.response` — distinct from
+		// Elysia's own string error codes (VALIDATION, NOT_FOUND, ...) below.
+		if (typeof code === "number") {
+			set.status = code;
+			return (error as { response: unknown }).response;
+		}
 		if (code === "VALIDATION") {
 			set.status = 400;
 			return { error: error.message };
@@ -27,7 +34,7 @@ const app = new Elysia()
 	.use(
 		cors({
 			origin: env.CORS_ORIGIN,
-			methods: ["GET", "POST", "OPTIONS"],
+			methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
 			credentials: true,
 		})
 	)
