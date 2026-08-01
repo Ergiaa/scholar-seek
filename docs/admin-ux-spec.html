@@ -1,0 +1,784 @@
+<title>Scholar Seek — Admin Dashboard UX Spec</title>
+<style>
+  :root {
+    --paper: #eef1ea;
+    --paper-raised: #e4e8de;
+    --ink: #1b231f;
+    --ink-soft: #4a544c;
+    --line: rgba(27, 35, 31, 0.14);
+    --line-strong: rgba(27, 35, 31, 0.28);
+    --accent: #3d4e8c;
+    --accent-soft: rgba(61, 78, 140, 0.12);
+    --accent-ink: #1f2a52;
+    --success: #4b7b5f;
+    --success-soft: rgba(75, 123, 95, 0.14);
+    --warning: #a3721f;
+    --warning-soft: rgba(163, 114, 31, 0.16);
+    --critical: #a63d33;
+    --critical-soft: rgba(166, 61, 51, 0.13);
+    --font-display: ui-serif, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+    --font-body: -apple-system, "Segoe UI", system-ui, Roboto, "Helvetica Neue", sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #121815;
+      --paper-raised: #1a211c;
+      --ink: #e6eae2;
+      --ink-soft: #a4ada2;
+      --line: rgba(230, 234, 226, 0.14);
+      --line-strong: rgba(230, 234, 226, 0.26);
+      --accent: #8ea0e8;
+      --accent-soft: rgba(142, 160, 232, 0.14);
+      --accent-ink: #dbe1fa;
+      --success: #7fb491;
+      --success-soft: rgba(127, 180, 145, 0.16);
+      --warning: #d1a24f;
+      --warning-soft: rgba(209, 162, 79, 0.16);
+      --critical: #dd8177;
+      --critical-soft: rgba(221, 129, 119, 0.16);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #121815;
+    --paper-raised: #1a211c;
+    --ink: #e6eae2;
+    --ink-soft: #a4ada2;
+    --line: rgba(230, 234, 226, 0.14);
+    --line-strong: rgba(230, 234, 226, 0.26);
+    --accent: #8ea0e8;
+    --accent-soft: rgba(142, 160, 232, 0.14);
+    --accent-ink: #dbe1fa;
+    --success: #7fb491;
+    --success-soft: rgba(127, 180, 145, 0.16);
+    --warning: #d1a24f;
+    --warning-soft: rgba(209, 162, 79, 0.16);
+    --critical: #dd8177;
+    --critical-soft: rgba(221, 129, 119, 0.16);
+  }
+  :root[data-theme="light"] {
+    --paper: #eef1ea;
+    --paper-raised: #e4e8de;
+    --ink: #1b231f;
+    --ink-soft: #4a544c;
+    --line: rgba(27, 35, 31, 0.14);
+    --line-strong: rgba(27, 35, 31, 0.28);
+    --accent: #3d4e8c;
+    --accent-soft: rgba(61, 78, 140, 0.12);
+    --accent-ink: #1f2a52;
+    --success: #4b7b5f;
+    --success-soft: rgba(75, 123, 95, 0.14);
+    --warning: #a3721f;
+    --warning-soft: rgba(163, 114, 31, 0.16);
+    --critical: #a63d33;
+    --critical-soft: rgba(166, 61, 51, 0.13);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 15.5px;
+    line-height: 1.6;
+  }
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    text-wrap: balance;
+    font-weight: 600;
+    color: var(--ink);
+    margin: 0;
+  }
+  a { color: var(--accent); }
+  code, .mono {
+    font-family: var(--font-mono);
+    font-size: 0.88em;
+    background: var(--paper-raised);
+    padding: 0.1em 0.4em;
+    border-radius: 3px;
+  }
+
+  .shell {
+    display: grid;
+    grid-template-columns: 232px minmax(0, 1fr);
+    max-width: 1280px;
+    margin: 0 auto;
+    gap: 0;
+  }
+  @media (max-width: 860px) {
+    .shell { grid-template-columns: 1fr; }
+    nav.rail { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--line); }
+  }
+
+  nav.rail {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 2.75rem 1.25rem 2rem;
+    border-right: 1px solid var(--line);
+  }
+  nav.rail .brand {
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin-bottom: 0.15rem;
+  }
+  nav.rail .brand-sub {
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 2rem;
+    display: block;
+  }
+  nav.rail ul {
+    list-style: none;
+    margin: 0 0 1.75rem;
+    padding: 0;
+  }
+  nav.rail .group-label {
+    font-size: 0.68rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 0 0 0.5rem;
+    font-weight: 600;
+  }
+  nav.rail li { margin-bottom: 0.05rem; }
+  nav.rail a {
+    display: block;
+    padding: 0.32rem 0.5rem;
+    margin: 0 -0.5rem;
+    border-radius: 5px;
+    color: var(--ink-soft);
+    text-decoration: none;
+    font-size: 0.87rem;
+    border-left: 2px solid transparent;
+  }
+  nav.rail a:hover { background: var(--paper-raised); color: var(--ink); }
+
+  main { padding: 2.75rem clamp(1.5rem, 4vw, 3.5rem) 6rem; min-width: 0; }
+
+  .cover {
+    padding-bottom: 2.5rem;
+    margin-bottom: 3rem;
+    border-bottom: 1px solid var(--line-strong);
+  }
+  .cover .eyebrow {
+    font-size: 0.74rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 0.9rem;
+    display: block;
+  }
+  .cover h1 { font-size: clamp(1.9rem, 4vw, 2.5rem); max-width: 20ch; }
+  .cover p.dek {
+    max-width: 62ch;
+    font-size: 1.05rem;
+    color: var(--ink-soft);
+    margin-top: 1rem;
+  }
+  .cover .meta {
+    display: flex;
+    gap: 2rem;
+    margin-top: 1.75rem;
+    font-size: 0.82rem;
+    color: var(--ink-soft);
+    flex-wrap: wrap;
+  }
+  .cover .meta strong { color: var(--ink); display: block; font-weight: 600; }
+
+  section.page {
+    margin-bottom: 4.5rem;
+    scroll-margin-top: 1.5rem;
+  }
+  section.page .page-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.9rem;
+    margin-bottom: 0.4rem;
+  }
+  section.page .page-num {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--accent);
+    background: var(--accent-soft);
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+  section.page h2 { font-size: 1.55rem; }
+  section.page > .role {
+    color: var(--ink-soft);
+    font-size: 0.92rem;
+    margin: 0.6rem 0 2rem;
+    max-width: 68ch;
+  }
+
+  h3.sub {
+    font-size: 0.75rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 2.25rem 0 0.9rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--line);
+  }
+  h3.sub:first-of-type { margin-top: 0; }
+
+  p { max-width: 70ch; margin: 0 0 0.9rem; }
+  ul.plain, ol.flow { margin: 0 0 1rem; padding-left: 0; max-width: 70ch; }
+  ul.plain { list-style: none; }
+  ul.plain > li {
+    position: relative;
+    padding-left: 1.1rem;
+    margin-bottom: 0.55rem;
+  }
+  ul.plain > li::before {
+    content: "–";
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+  }
+  ul.plain > li strong { color: var(--ink); }
+
+  ol.flow { counter-reset: flow; list-style: none; padding-left: 0; }
+  ol.flow > li {
+    counter-increment: flow;
+    position: relative;
+    padding: 0.7rem 0 0.7rem 2.6rem;
+    border-bottom: 1px solid var(--line);
+  }
+  ol.flow > li:last-child { border-bottom: none; }
+  ol.flow > li::before {
+    content: counter(flow);
+    position: absolute;
+    left: 0;
+    top: 0.65rem;
+    width: 1.7rem;
+    height: 1.7rem;
+    border-radius: 50%;
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  ol.flow > li strong.step-title { display: block; color: var(--ink); margin-bottom: 0.2rem; }
+
+  .card {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 1.25rem 1.4rem;
+    margin: 1.1rem 0;
+  }
+  .card.callout-warning { border-color: color-mix(in srgb, var(--warning) 45%, var(--line)); background: var(--warning-soft); }
+  .card.callout-open { border-style: dashed; }
+  .card h4 {
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+    margin-bottom: 0.6rem;
+  }
+  .card p:last-child, .card ul.plain:last-child { margin-bottom: 0; }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+  }
+  @media (max-width: 640px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.88rem;
+    margin: 0.5rem 0 1.5rem;
+  }
+  .table-wrap { overflow-x: auto; }
+  th, td {
+    text-align: left;
+    padding: 0.55rem 0.9rem;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  th {
+    font-size: 0.72rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.74rem;
+    font-weight: 600;
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .chip.on { background: var(--success-soft); color: var(--success); }
+  .chip.off { background: var(--paper); color: var(--ink-soft); border: 1px solid var(--line); }
+  .chip.warn { background: var(--warning-soft); color: var(--warning); }
+  .chip.bad { background: var(--critical-soft); color: var(--critical); }
+  .chip.accent { background: var(--accent-soft); color: var(--accent-ink); }
+
+  .wire {
+    border: 1px dashed var(--line-strong);
+    border-radius: 8px;
+    padding: 1.1rem 1.3rem;
+    margin: 1rem 0 1.5rem;
+    background: var(--paper);
+  }
+  .wire .wire-label {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    display: block;
+    margin-bottom: 0.6rem;
+  }
+  .wire ul.plain { margin-bottom: 0; }
+
+  .qbox {
+    display: flex;
+    gap: 0.7rem;
+    align-items: flex-start;
+    margin: 0.5rem 0;
+    padding: 0.6rem 0.8rem;
+    background: var(--accent-soft);
+    border-radius: 6px;
+    max-width: 70ch;
+  }
+  .qbox .q-mark {
+    font-family: var(--font-display);
+    font-weight: 700;
+    color: var(--accent);
+    font-size: 1.05rem;
+    line-height: 1.3;
+  }
+  .qbox p { margin: 0; font-size: 0.9rem; }
+
+  footer.doc-end {
+    max-width: 70ch;
+    margin-top: 4rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--line);
+    color: var(--ink-soft);
+    font-size: 0.85rem;
+  }
+
+  ::selection { background: var(--accent-soft); }
+</style>
+
+<div class="shell">
+  <nav class="rail">
+    <span class="brand">Scholar Seek</span>
+    <span class="brand-sub">Admin dashboard — UX spec</span>
+
+    <span class="group-label">Contents</span>
+    <ul>
+      <li><a href="#scope">00 · Scope &amp; shell</a></li>
+      <li><a href="#overview">01 · Overview</a></li>
+      <li><a href="#schedules">02 · Schedules</a></li>
+      <li><a href="#history">03 · Crawl history</a></li>
+      <li><a href="#users">04 · User management</a></li>
+      <li><a href="#patterns">05 · Shared patterns</a></li>
+      <li><a href="#open">Open questions</a></li>
+    </ul>
+  </nav>
+
+  <main>
+    <div class="cover">
+      <span class="eyebrow">Design handoff — v1</span>
+      <h1>Admin Dashboard<br />UX Requirements</h1>
+      <p class="dek">
+        Specification for four internal pages used to operate Scholar Seek's paper crawler
+        and manage staff accounts. Written for a designer producing wireframes and visual
+        design — flows and content are fixed, layout and visual treatment are open.
+      </p>
+      <div class="meta">
+        <span><strong>Audience</strong>Root admin + admin-role staff only. Not end-user facing.</span>
+        <span><strong>Surface</strong>Web app, existing light/dark theme toggle already in place.</span>
+        <span><strong>Existing kit</strong>Button, Card, Input, Badge, Checkbox, Separator, Sonner toasts.</span>
+      </div>
+    </div>
+
+    <section class="page" id="scope">
+      <div class="page-head"><span class="page-num">00</span><h2>Scope &amp; shell</h2></div>
+      <p class="role">What every admin page shares, before getting into any one of them.</p>
+
+      <h3 class="sub">Context</h3>
+      <p>
+        Scholar Seek is an academic paper search engine. Its catalog is populated by a
+        background crawler that pulls from three sources — arXiv, Semantic Scholar, and
+        DOAJ — on schedules an admin defines. This spec covers the four pages an admin
+        uses to run that system: an overview, the schedule editor, a history/audit log,
+        and staff account management.
+      </p>
+
+      <h3 class="sub">Two roles, one distinction that matters</h3>
+      <ul class="plain">
+        <li><strong>Root admin</strong> — exactly one, seeded at install. Cannot be demoted,
+        banned, or deleted by anyone, including itself. The UI needs to make this visible
+        (disabled controls with a reason), not just let the action fail.</li>
+        <li><strong>Admin</strong> — created by an existing admin (there is no public
+        sign-up). Full access to all four pages, with the one exception above.</li>
+      </ul>
+
+      <h3 class="sub">Shell &amp; navigation</h3>
+      <p>All four pages sit behind one persistent admin shell: a nav (rail or top bar —
+      designer's call) with four destinations, the current page indicated, and a
+      sign-out control. Anyone without an admin role sees none of this — the shell itself
+      is the access boundary.</p>
+
+      <div class="wire">
+        <span class="wire-label">Shell — content regions</span>
+        <ul class="plain">
+          <li>Persistent nav: Overview · Schedules · History · Users</li>
+          <li>Signed-in-as indicator (email + role chip)</li>
+          <li>Page content region — this is what pages 01–04 below describe</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="page" id="overview">
+      <div class="page-head"><span class="page-num">01</span><h2>Overview</h2></div>
+      <p class="role">The landing page. One question it has to answer in five seconds:
+      <em>is anything broken right now?</em></p>
+
+      <h3 class="sub">Primary tasks</h3>
+      <ul class="plain">
+        <li>Gauge catalog size and growth at a glance</li>
+        <li>Spot a stalled schedule or a failing crawl without visiting History</li>
+        <li>Jump straight to whatever needs attention</li>
+      </ul>
+
+      <h3 class="sub">Content regions</h3>
+      <div class="wire">
+        <span class="wire-label">Layout — top to bottom</span>
+        <ul class="plain">
+          <li><strong>Attention strip</strong> — only appears when something needs looking
+          at: a schedule whose last run failed, or a run currently past its estimated
+          duration. Empty/hidden when everything is healthy. This sits above the fold,
+          not buried in a tab.</li>
+          <li><strong>Stat tiles</strong> — total papers, added in last 24h, added in last
+          7d, embedding coverage %, active schedule count, schedules currently running.</li>
+          <li><strong>Source breakdown</strong> — papers by source (arXiv / Semantic
+          Scholar / DOAJ), count and share of total.</li>
+          <li><strong>Recent activity</strong> — last ~10 crawl runs across all schedules,
+          each row linking into the full History page.</li>
+        </ul>
+      </div>
+
+      <h3 class="sub">States</h3>
+      <ul class="plain">
+        <li><strong>Loading</strong> — tiles and rows show placeholder shapes matching
+        their final size, not a spinner over blank space.</li>
+        <li><strong>Fresh install</strong> — 0 papers, 0 schedules run yet. Needs a real
+        empty state with a next action ("Create your first schedule"), not a wall of
+        zeroes.</li>
+        <li><strong>0% embedding coverage</strong> — expected right after a fresh crawl,
+        before the ML backfill catches up. Should read as "in progress," not "broken."</li>
+      </ul>
+    </section>
+
+    <section class="page" id="schedules">
+      <div class="page-head"><span class="page-num">02</span><h2>Schedules</h2></div>
+      <p class="role">Where crawls get defined, run, and watched. The most involved page
+      in the set — three flows, described in order below.</p>
+
+      <h3 class="sub">Primary tasks</h3>
+      <ul class="plain">
+        <li>See every schedule and its health at a glance</li>
+        <li>Create a new schedule, or edit an existing one</li>
+        <li>Trigger a manual run, watch it progress, cancel it if needed</li>
+      </ul>
+
+      <h3 class="sub">List view</h3>
+      <div class="wire">
+        <span class="wire-label">Per-schedule row/card contents</span>
+        <ul class="plain">
+          <li>Name, and cadence in both forms — human-readable (<em>"Daily at 03:25"</em>)
+          and the raw pattern (<code>25 3 * * *</code>) for anyone who wants to verify it</li>
+          <li>Enabled / disabled state</li>
+          <li>Source badges — a schedule can mix sources across its targets now (see
+          below), so this row shows one badge per distinct source in use, not a single
+          value</li>
+          <li>Target count</li>
+          <li>Last run — status and relative time ("completed 3h ago", "failed 1d ago")</li>
+          <li>Actions: Edit, Run now, Enable/Disable, Delete</li>
+        </ul>
+      </div>
+      <p>Filter by enabled state and by source once the list grows past a handful — not
+      required for a first pass with only a few schedules.</p>
+      <p><strong>Empty state:</strong> no schedules yet, with a clear "Create a schedule"
+      call to action — this is likely the very first thing a fresh install's admin sees.</p>
+
+      <h3 class="sub">Create / edit flow</h3>
+      <ol class="flow">
+        <li>
+          <strong class="step-title">Name and cadence</strong>
+          A name field, plus a cadence builder — not a raw cron input as the primary
+          control. Offer "Daily at [time]" and "Weekly on [day] at [time]" as guided
+          options, with "Custom" as an escape hatch to type cron directly for power
+          users. Always show the resulting pattern in both forms underneath, so the
+          guided option and the escape hatch stay visibly in sync.
+        </li>
+        <li>
+          <strong class="step-title">Targets — one or more, each independently sourced</strong>
+          A repeatable list. Each row is its own small form, and <strong>the source
+          choice comes first</strong> because it changes what the rest of the row asks
+          for:
+          <div class="table-wrap">
+          <table>
+            <thead><tr><th>Source</th><th>Query</th><th>Categories</th></tr></thead>
+            <tbody>
+              <tr><td>arXiv</td><td>Not shown — not applicable to this source</td><td>Multi-select, arXiv subject list</td></tr>
+              <tr><td>Semantic Scholar</td><td>Shown, <strong>required</strong> — inline error if left blank</td><td>Multi-select, field-of-study list</td></tr>
+              <tr><td>DOAJ</td><td>Not shown</td><td>Multi-select, DOAJ subject list</td></tr>
+            </tbody>
+          </table>
+          </div>
+          Every row also has a label (free text, the admin's own reference — e.g.
+          <em>"S2 — machine learning"</em>), a max-records field with a visible ceiling,
+          and a remove action (disabled on the last remaining row). "Add target" sits
+          below the list. A schedule with three targets — one per source — is exactly as
+          valid as one with a single target; the form shouldn't privilege either shape.
+        </li>
+        <li>
+          <strong class="step-title">Review before saving</strong>
+          A short computed summary — target count, sources involved, combined max
+          records — shown just before the save action. This is the same kind of number
+          the run-now flow shows before executing; showing it at creation time too means
+          nothing about scale is a surprise later.
+        </li>
+      </ol>
+
+      <h3 class="sub">Run-now flow</h3>
+      <ol class="flow">
+        <li><strong class="step-title">Trigger</strong>Admin clicks "Run now" on a schedule.</li>
+        <li>
+          <strong class="step-title">Estimate</strong>
+          System shows target count, total requests, and an estimated duration, computed
+          from what's actually configured — not a placeholder. If any target uses
+          Semantic Scholar without an API key configured, show a warning: the shared
+          public rate pool can make the real run slower than the estimate.
+        </li>
+        <li>
+          <strong class="step-title">Confirm — two tiers</strong>
+          Below a safe-cost threshold: one "Confirm run" action. Above it: extra
+          friction — the admin must type a confirmation phrase before "Run anyway"
+          becomes clickable. The root admin bypasses this second tier, but the UI should
+          say so visibly (e.g. a small "root admin — override not required" note) rather
+          than silently skip a step a designer might otherwise assume always appears.
+        </li>
+        <li>
+          <strong class="step-title">Progress</strong>
+          Live element: targets completed out of total, elapsed vs. estimated time. The
+          moment any target fails, a distinct failed-count indicator appears alongside
+          the completed count — <strong>"completed" must never visually read as "all
+          succeeded"</strong> when it isn't. This was a real bug in the first version of
+          this page; the design should make it structurally hard to repeat.
+        </li>
+        <li>
+          <strong class="step-title">Cancel</strong>
+          Available while running. Removes targets that haven't started yet; whatever's
+          already running finishes on its own and keeps its real outcome.
+        </li>
+      </ol>
+
+      <div class="card callout-warning">
+        <h4>Why the two-tier confirm exists</h4>
+        <p>A schedule can be small (one target, a few hundred records) or effectively a
+        full backfill (many targets, tens of thousands of records each). The threshold
+        exists so a small daily schedule stays a one-click action while a heavy one gets
+        a genuine "are you sure" — the design should make that difference in weight
+        obvious, not just a longer button label.</p>
+      </div>
+    </section>
+
+    <section class="page" id="history">
+      <div class="page-head"><span class="page-num">03</span><h2>Crawl history</h2></div>
+      <p class="role">The audit log. Used for debugging — what ran, when, did it work.</p>
+
+      <h3 class="sub">Primary tasks</h3>
+      <ul class="plain">
+        <li>Scan recent activity across every schedule in one place</li>
+        <li>Filter down to a specific source, status, or date range</li>
+        <li>Open one run's detail to see exactly what happened and why</li>
+        <li>Jump back to the schedule that produced a given run</li>
+      </ul>
+
+      <h3 class="sub">Content</h3>
+      <div class="wire">
+        <span class="wire-label">Filter bar</span>
+        <ul class="plain">
+          <li>Source (all / arXiv / Semantic Scholar / DOAJ)</li>
+          <li>Status (running / completed / failed)</li>
+          <li>Date range</li>
+        </ul>
+      </div>
+      <div class="wire">
+        <span class="wire-label">Table columns</span>
+        <ul class="plain">
+          <li>Started (sortable)</li>
+          <li>Source</li>
+          <li>Status — as a chip, see Shared Patterns, not plain text</li>
+          <li>Papers found / inserted / skipped</li>
+          <li>Duration (sortable)</li>
+          <li>Parent schedule — linked back to that schedule's edit page</li>
+        </ul>
+      </div>
+      <p><strong>Row detail</strong> (expand-in-place or side panel): full error list
+      when failed, and the exact options used for that run — query, categories,
+      max records, since-date — so a failure is reproducible without guessing.</p>
+
+      <h3 class="sub">States &amp; edge cases</h3>
+      <ul class="plain">
+        <li>A <code>running</code> row needs a visibly different treatment from a
+        finished one — not just a different word in the same chip position.</li>
+        <li>Long error messages truncate with an expand control, never silently overflow
+        the row.</li>
+        <li>Paginate — this table will outgrow a single page quickly once schedules run
+        daily for months.</li>
+      </ul>
+    </section>
+
+    <section class="page" id="users">
+      <div class="page-head"><span class="page-num">04</span><h2>User management</h2></div>
+      <p class="role">Access control for staff. There is no public sign-up — this page
+      is the only way a new account gets created.</p>
+
+      <h3 class="sub">Primary tasks</h3>
+      <ul class="plain">
+        <li>See everyone with access and their current role/status</li>
+        <li>Create a new staff account</li>
+        <li>Change a role, ban, or remove a user</li>
+        <li>Inspect and revoke a user's active sessions</li>
+      </ul>
+
+      <h3 class="sub">Content</h3>
+      <div class="wire">
+        <span class="wire-label">Table columns</span>
+        <ul class="plain">
+          <li>Email, name</li>
+          <li>Role — chip (root admin / admin / user)</li>
+          <li>Status — active / banned</li>
+          <li>Created date</li>
+          <li>Actions</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h4>The root admin's row is a special case</h4>
+        <p>Its role/ban/remove actions are <strong>visibly disabled</strong>, with a
+        short reason on hover or as inline caption ("Root admin cannot be modified") —
+        not present-and-clickable-but-silently-rejected. The backend already enforces
+        this; the UI's job is to make the constraint legible before someone tries.</p>
+      </div>
+
+      <h3 class="sub">Create account</h3>
+      <p>Since this is the only path to a new account, its entry point needs to read as
+      a primary action on the page — not a small icon tucked in a corner.</p>
+
+      <h3 class="sub">Sessions</h3>
+      <p>Per-user, on demand (e.g. from a row action): list of that account's active
+      sessions. Each has an individual "Revoke," plus a "Revoke all" for the whole
+      account — useful the moment an admin suspects a compromised login, independent of
+      banning the account outright.</p>
+
+      <h3 class="sub">Confirmation weight</h3>
+      <p>Ban and remove are high-impact. Both need an explicit confirm step — a modal
+      with the consequence stated in plain words, not a bare click-and-done. This
+      doesn't need the typed-phrase tier from the Schedules run-now flow; a standard
+      confirm dialog is enough here.</p>
+    </section>
+
+    <section class="page" id="patterns">
+      <div class="page-head"><span class="page-num">05</span><h2>Shared patterns</h2></div>
+      <p class="role">Cross-cutting rules the designer should treat as a small system
+      spanning all four pages, so an admin doesn't have to relearn conventions per
+      screen.</p>
+
+      <div class="grid-2">
+        <div class="card">
+          <h4>Confirmation tiers</h4>
+          <p>Three weights, used consistently:</p>
+          <ul class="plain">
+            <li><strong>Standard confirm</strong> — modal, one clear action (ban,
+            remove, delete schedule)</li>
+            <li><strong>Escalated confirm</strong> — typed phrase required (run-now
+            above the cost threshold, only)</li>
+            <li><strong>No confirm</strong> — reversible, low-cost toggles (enable/disable
+            a schedule)</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>Toasts</h4>
+          <p>Every mutation gets one — create, update, delete, run, cancel, ban,
+          revoke. Success and failure both surface here, not just failure.</p>
+        </div>
+        <div class="card">
+          <h4>Status chips</h4>
+          <p>One visual language, reused everywhere a state appears: schedule
+          enabled/disabled, run running/completed/failed/cancelled, user
+          active/banned, crawl status. Same shape and color meaning on every page.</p>
+        </div>
+        <div class="card">
+          <h4>Empty states</h4>
+          <p>Every list gets one, and every one of them includes a next action — never
+          just an illustration and "no data."</p>
+        </div>
+      </div>
+
+      <h3 class="sub">Loading</h3>
+      <p>Skeleton placeholders shaped like the content they'll become (a tile-shaped
+      block for a stat tile, a row-shaped block for a table row) — not a centered
+      spinner over empty space.</p>
+    </section>
+
+    <section class="page" id="open">
+      <div class="page-head"><h2>Open questions</h2></div>
+      <p class="role">Flagged for the designer to weigh in on — not yet decided.</p>
+
+      <div class="qbox">
+        <span class="q-mark">?</span>
+        <p>Should Overview, History, and Users be separate routes, or tabs within one
+        page? Affects how the shell nav should read.</p>
+      </div>
+      <div class="qbox">
+        <span class="q-mark">?</span>
+        <p>Does the cadence builder need more than daily/weekly — e.g. "every N
+        hours" — or does that only belong in the Custom-cron escape hatch?</p>
+      </div>
+      <div class="qbox">
+        <span class="q-mark">?</span>
+        <p>How much recent activity belongs on Overview before it's better to just send
+        the admin to History?</p>
+      </div>
+    </section>
+
+    <footer class="doc-end">
+      Scholar Seek — internal tooling. This spec covers flows and content; visual
+      design, spacing, and component detail are the designer's to define.
+    </footer>
+  </main>
+</div>

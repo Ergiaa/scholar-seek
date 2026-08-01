@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  body{margin:0;background:oklch(0.99 0.01 280);font-family:'Inter',-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+  *{box-sizing:border-box}
+  ::selection{background:oklch(0.45 0.16 280 / 0.18)}
+  a{color:oklch(0.45 0.16 280)}
+  a:hover{color:oklch(0.35 0.16 280)}
+</style>
+</helmet>
+
+<div style="display:flex;min-height:100vh;color:oklch(0.15 0.02 280)">
+
+  <nav style="width:232px;flex-shrink:0;border-right:1px solid oklch(0.9 0.02 280);padding:28px 16px;display:flex;flex-direction:column;gap:28px;position:sticky;top:0;height:100vh">
+    <div>
+      <div style="font-weight:700;font-size:15px;letter-spacing:-0.01em">Scholar Seek</div>
+      <div style="font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;color:oklch(0.55 0.03 280);margin-top:2px">Admin</div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:1px">
+      <div style="font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;color:oklch(0.55 0.03 280);font-weight:600;margin:0 8px 6px">Menu</div>
+      <button onClick="{{ goOverview }}" style="{{ navStyle_overview }}">
+        <span>Overview</span>
+      </button>
+      <button onClick="{{ goSchedules }}" style="{{ navStyle_schedules }}">
+        <span>Schedules</span>
+      </button>
+      <button onClick="{{ goHistory }}" style="{{ navStyle_history }}">
+        <span>History</span>
+      </button>
+      <button onClick="{{ goUsers }}" style="{{ navStyle_users }}">
+        <span>Users</span>
+      </button>
+    </div>
+
+    <div style="margin-top:auto;padding-top:16px;border-top:1px solid oklch(0.9 0.02 280);display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="width:26px;height:26px;border-radius:50%;background:oklch(0.45 0.16 280);color:oklch(0.98 0.01 280);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0">RA</div>
+        <div style="min-width:0">
+          <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">root@scholarseek.dev</div>
+          <div style="font-size:10.5px;color:oklch(0.55 0.03 280)">root admin</div>
+        </div>
+      </div>
+      <button style="height:28px;border:1px solid oklch(0.9 0.02 280);background:transparent;color:oklch(0.55 0.03 280);font-size:11.5px;font-weight:500;cursor:pointer;font-family:inherit">Sign out</button>
+    </div>
+  </nav>
+
+  <main style="flex:1;min-width:0;padding:36px 44px 80px">
+
+    <sc-if value="{{ isOverview }}" hint-placeholder-val="{{ true }}">
+    <div>
+      <header style="margin-bottom:28px">
+        <h1 style="font-size:22px;font-weight:700;margin:0 0 4px;letter-spacing:-0.01em">Overview</h1>
+        <p style="font-size:13px;color:oklch(0.55 0.03 280);margin:0">Catalog health and crawler status at a glance.</p>
+      </header>
+
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:oklch(0.55 0.2 25 / 0.08);border:1px solid oklch(0.55 0.2 25 / 0.25);margin-bottom:24px">
+        <div style="width:8px;height:8px;border-radius:50%;background:oklch(0.55 0.2 25);flex-shrink:0"></div>
+        <div style="flex:1;font-size:13px">
+          <strong style="font-weight:600">Semantic Scholar — ML papers</strong> failed 2 hours ago after 3/8 targets completed.
+        </div>
+        <a href="#" style="font-size:12.5px;font-weight:600;white-space:nowrap">View in History →</a>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:oklch(0.68 0.15 80 / 0.1);border:1px solid oklch(0.68 0.15 80 / 0.3);margin-bottom:28px">
+        <div style="width:8px;height:8px;border-radius:50%;background:oklch(0.68 0.15 80);flex-shrink:0"></div>
+        <div style="flex:1;font-size:13px">
+          <strong style="font-weight:600">Backfill — full history</strong> has been running 41 min, past its 25 min estimate.
+        </div>
+        <a href="#" style="font-size:12.5px;font-weight:600;white-space:nowrap">View schedule →</a>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:oklch(0.9 0.02 280);border:1px solid oklch(0.9 0.02 280);margin-bottom:32px">
+        <div style="background:#fff;padding:16px 14px">
+          <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:0.06em;color:oklch(0.55 0.03 280);margin-bottom:8px">Total papers</div>
+          <div style="font-size:22px;font-weight:700;font-variant-numeric:tabular-nums">128,402</div>
+        </div>
+        <div style="background:#fff;padding:16px 14px">
+          <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:0.06em;color:oklch(0.55 0.03 280);margin-bottom:8px">Added 24h</div>
+          <div style="font-size:22px;font-weight:700;font-variant-numeric:tabular-nums">+340</div>
+        </div>
+        <div style="background:#fff;padding:16px 14px">
+          <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:0.06em;color:oklch(0.55 0.03 280);margin-bottom:8px">Added 7d</div>
+          <div style="font-size:22px;font-weight:700;font-variant-numeric:tabular-nums">+2,150</div>
+        </div>
+        <div style="background:#fff;padding:16px 14px">
+          <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:0.06em;color:oklch(0.55 0.03 280);margin-bottom:8px">Embedding coverage</div>
+          <div style="font-size:22px;font-weight:700;font-variant-numeric:tabular-nums">82%</div>
+        </div>
+        <div style="background:#fff;padding:16px 14px">
+          <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:0.06em;color:oklch(0.55 0.03 280);margin-bottom:8px">Active schedules</div>
+          <div style="font-size:22px;font-weight:700;font-variant-numeric:tabular-nums">5</div>
+        </div>
+        <div style="background:#fff;padding:16px 14px">
+          <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:0.06em;color:oklch(0.55 0.03 280);margin-bottom:8px">Running now</div>
+          <div style="font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;color:oklch(0.68 0.15 80)">1</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:minmax(220px,280px) minmax(0,1fr);gap:32px;margin-bottom:36px">
+        <div>
+          <h3 style="font-size:11px;text-transform:uppercase;letter-spacing:0.07em;color:oklch(0.55 0.03 280);font-weight:600;margin:0 0 14px;padding-bottom:8px;border-bottom:1px solid oklch(0.9 0.02 280)">By source</h3>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div>
+              <div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;margin-bottom:4px"><span style="white-space:nowrap;flex-shrink:0">arXiv</span><span style="flex-shrink:0;font-variant-numeric:tabular-nums;color:oklch(0.55 0.03 280)">78,340 · 61%</span></div>
+              <div style="height:5px;background:oklch(0.95 0.02 280)"><div style="height:100%;width:61%;background:oklch(0.45 0.16 280)"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;margin-bottom:4px"><span style="white-space:nowrap;flex-shrink:0">Semantic Scholar</span><span style="flex-shrink:0;font-variant-numeric:tabular-nums;color:oklch(0.55 0.03 280)">42,100 · 33%</span></div>
+              <div style="height:5px;background:oklch(0.95 0.02 280)"><div style="height:100%;width:33%;background:oklch(0.65 0.14 250)"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px;margin-bottom:4px"><span style="white-space:nowrap;flex-shrink:0">DOAJ</span><span style="flex-shrink:0;font-variant-numeric:tabular-nums;color:oklch(0.55 0.03 280)">7,962 · 6%</span></div>
+              <div style="height:5px;background:oklch(0.95 0.02 280)"><div style="height:100%;width:6%;background:oklch(0.75 0.12 300)"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid oklch(0.9 0.02 280)">
+            <h3 style="font-size:11px;text-transform:uppercase;letter-spacing:0.07em;color:oklch(0.55 0.03 280);font-weight:600;margin:0">Recent activity</h3>
+            <a href="#" style="font-size:12px;font-weight:600">View all in History →</a>
+          </div>
+          <sc-for list="{{ activityRows }}" as="row" hint-placeholder-count="5">
+            <div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;padding:8px 2px;border-bottom:1px solid oklch(0.9 0.02 280);font-size:12.5px">
+              <span style="{{ row.chipStyle }}">{{ row.statusLabel }}</span>
+              <span style="width:60px;flex-shrink:0;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ row.source }}</span>
+              <span style="flex:1 1 90px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:oklch(0.55 0.03 280)">{{ row.schedule }}</span>
+              <span style="flex:1 1 90px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right;color:oklch(0.55 0.03 280)">{{ row.detail }}</span>
+              <span style="width:44px;flex-shrink:0;text-align:right;color:oklch(0.55 0.03 280)">{{ row.time }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <h3 style="font-size:11px;text-transform:uppercase;letter-spacing:0.07em;color:oklch(0.55 0.03 280);font-weight:600;margin:36px 0 14px">Other states — for reference</h3>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+        <div style="border:1px solid oklch(0.9 0.02 280)">
+          <div style="padding:8px 12px;background:oklch(0.95 0.02 280);font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:oklch(0.55 0.03 280)">Loading</div>
+          <div style="padding:16px 14px;display:flex;flex-direction:column;gap:10px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <div style="height:44px;background:oklch(0.95 0.02 280)"></div>
+              <div style="height:44px;background:oklch(0.95 0.02 280)"></div>
+            </div>
+            <div style="height:14px;width:80%;background:oklch(0.95 0.02 280)"></div>
+            <div style="height:14px;width:60%;background:oklch(0.95 0.02 280)"></div>
+          </div>
+        </div>
+        <div style="border:1px solid oklch(0.9 0.02 280)">
+          <div style="padding:8px 12px;background:oklch(0.95 0.02 280);font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:oklch(0.55 0.03 280)">Fresh install — empty</div>
+          <div style="padding:24px 14px;text-align:center">
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px">No data yet</div>
+            <div style="font-size:12px;color:oklch(0.55 0.03 280);margin-bottom:14px">The catalog is empty. Create a schedule to start crawling.</div>
+            <button style="height:28px;padding:0 12px;background:oklch(0.45 0.16 280);color:oklch(0.98 0.01 280);border:none;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Create your first schedule</button>
+          </div>
+        </div>
+        <div style="border:1px solid oklch(0.9 0.02 280)">
+          <div style="padding:8px 12px;background:oklch(0.95 0.02 280);font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:oklch(0.55 0.03 280)">0% coverage (post-crawl)</div>
+          <div style="padding:16px 14px">
+            <div style="font-size:22px;font-weight:700;color:oklch(0.65 0.14 250)">0%</div>
+            <div style="font-size:12px;color:oklch(0.55 0.03 280);margin-top:6px">Embedding backfill in progress — new papers are indexed before vectors are computed.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{ isSchedules }}" hint-placeholder-val="{{ false }}">
+    <div>
+      <header style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px">
+        <div>
+          <h1 style="font-size:22px;font-weight:700;margin:0 0 4px;letter-spacing:-0.01em">Schedules</h1>
+          <p style="font-size:13px;color:oklch(0.55 0.03 280);margin:0">Define crawl targets, trigger runs, watch progress.</p>
+        </div>
+        <button style="height:32px;padding:0 16px;background:oklch(0.45 0.16 280);color:oklch(0.98 0.01 280);border:none;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit">+ New schedule</button>
+      </header>
+
+      <h3 style="font-size:11px;text-transform:uppercase;letter-spacing:0.07em;color:oklch(0.55 0.03 280);font-weight:600;margin:0 0 12px">All schedules (4)</h3>
+      <div style="border:1px solid oklch(0.9 0.02 280);margin-bottom:20px">
+        <sc-for list="{{ schedules }}" as="s" hint-placeholder-count="4">
+          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px 16px;padding:14px 16px;border-bottom:1px solid oklch(0.9 0.02 280)">
+            <div style="width:12px;height:12px;border-radius:50%;flex-shrink:0;{{ s.enabledDotStyle }}"></div>
+            <div style="width:180px;flex:1 1 180px;min-width:150px">
+              <div style="font-size:13.5px;font-weight:600">{{ s.name }}</div>
+              <div style="font-size:11.5px;color:oklch(0.55 0.03 280);margin-top:2px">{{ s.cadenceHuman }} · <span style="font-family:ui-monospace,monospace">{{ s.cron }}</span></div>
+            </div>
+            <div style="flex:0 1 160px;min-width:100px;display:flex;gap:4px;flex-wrap:wrap">
+              <sc-for list="{{ s.sourceBadges }}" as="b" hint-placeholder-count="1">
+                <span style="{{ b.style }}">{{ b.label }}</span>
+              </sc-for>
+            </div>
+            <div style="flex-shrink:0;font-size:12.5px;color:oklch(0.55 0.03 280);white-space:nowrap">{{ s.targetCount }} targets</div>
+            <div style="flex:1 1 140px;min-width:120px">
+              <span style="{{ s.lastRunChipStyle }}">{{ s.lastRunLabel }}</span>
+              <span style="font-size:11.5px;color:oklch(0.55 0.03 280);margin-left:6px;white-space:nowrap">{{ s.lastRunTime }}</span>
+            </div>
+            <div style="display:flex;gap:6px;flex-shrink:0;margin-left:auto">
+              <button style="height:26px;padding:0 10px;background:transparent;border:1px solid oklch(0.9 0.02 280);font-size:11.5px;cursor:pointer;font-family:inherit">Edit</button>
+              <button style="height:26px;padding:0 10px;background:transparent;border:1px solid oklch(0.9 0.02 280);font-size:11.5px;cursor:pointer;font-family:inherit">{{ s.toggleLabel }}</button>
+              <button style="height:26px;padding:0 10px;background:oklch(0.45 0.16 280);color:#fff;border:none;font-size:11.5px;font-weight:600;cursor:pointer;font-family:inherit">Run now</button>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="border:1px dashed oklch(0.9 0.02 280);padding:18px 20px;margin-bottom:36px;display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;color:oklch(0.55 0.03 280);font-weight:600;margin-bottom:4px">For reference — empty state</div>
+          <div style="font-size:13px;font-weight:600">No schedules yet</div>
+          <div style="font-size:12px;color:oklch(0.55 0.03 280)">Create your first crawl schedule to start populating the catalog.</div>
+        </div>
+        <button style="height:30px;padding:0 14px;background:oklch(0.45 0.16 280);color:#fff;border:none;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;flex-shrink:0">Create a schedule</button>
+      </div>
+
+      <h3 style="font-size:11px;text-transform:uppercase;letter-spacing:0.07em;color:oklch(0.55 0.03 280);font-weight:600;margin:0 0 14px;padding-bottom:8px;border-bottom:1px solid oklch(0.9 0.02 280)">Create / edit flow</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:36px;align-items:start">
+
+        <div style="border:1px solid oklch(0.9 0.02 280)">
+          <div style="padding:10px 14px;background:oklch(0.95 0.02 280);display:flex;align-items:center;gap:8px">
+            <span style="width:20px;height:20px;border-radius:50%;background:oklch(0.45 0.16 280 / 0.14);color:oklch(0.45 0.16 280);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;font-family:ui-monospace,monospace">1</span>
+            <span style="font-size:12.5px;font-weight:600">Name &amp; cadence</span>
+          </div>
+          <div style="padding:16px 14px;display:flex;flex-direction:column;gap:12px">
+            <div>
+              <label style="font-size:11px;font-weight:600;color:oklch(0.55 0.03 280);display:block;margin-bottom:4px">Name</label>
+              <div style="height:30px;border:1px solid oklch(0.9 0.02 280);padding:0 8px;display:flex;align-items:center;font-size:12.5px">S2 — machine learning</div>
+            </div>
+            <div>
+              <label style="font-size:11px;font-weight:600;color:oklch(0.55 0.03 280);display:block;margin-bottom:6px">Cadence</label>
+              <div style="display:flex;gap:0;border:1px solid oklch(0.9 0.02 280);width:fit-content">
+                <div style="padding:5px 12px;background:oklch(0.45 0.16 280);color:#fff;font-size:11.5px;font-weight:600">Daily</div>
+                <div style="padding:5px 12px;font-size:11.5px;color:oklch(0.55 0.03 280);border-left:1px solid oklch(0.9 0.02 280)">Weekly</div>
+                <div style="padding:5px 12px;font-size:11.5px;color:oklch(0.55 0.03 280);border-left:1px solid oklch(0.9 0.02 280)">Custom</div>
+              </div>
+            </div>
+            <div>
+              <label style="font-size:11px;font-weight:600;color:oklch(0.55 0.03 280);display:block;margin-bottom:4px">At</label>
+              <div style="height:30px;border:1px solid oklch(0.9 0.02 280);padding:0 8px;display:flex;align-items:center;font-size:12.5px;width:100px">03:25</div>
+            </div>
+            <div style="font-size:11px;color:oklch(0.55 0.03 280);padding:8px 10px;background:oklch(0.95 0.02 280)">
+              Daily at 03:25 <span style="font-family:ui-monospace,monospace">· 25 3 * * *</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="border:1px solid oklch(0.9 0.02 280)">
+          <div style="padding:10px 14px;background:oklch(0.95 0.02 280);display:flex;align-items:center;gap:8px">
+            <span style="width:20px;height:20px;border-radius:50%;background:oklch(0.45 0.16 280 / 0.14);color:oklch(0.45 0.16 280);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;font-family:ui-monospace,monospace">2</span>
+            <span style="font-size:12.5px;font-weight:600">Targets</span>
+          </div>
+          <div style="padding:14px;display:flex;flex-direction:column;gap:10px">
+            <div style="border:1px solid oklch(0.9 0.02 280);padding:10px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                <span style="font-size:11px;font-weight:700;padding:2px 6px;background:oklch(0.65 0.14 250 / 0.14);color:oklch(0.4 0.14 250)">Semantic Scholar</span>
+                <span style="font-size:11px;color:oklch(0.55 0.2 25);cursor:pointer">Remove</span>
+              </div>
+              <div style="font-size:11.5px;color:oklch(0.55 0.03 280);margin-bottom:4px">Label: "S2 — ML core"</div>
+              <div style="font-size:11.5px;color:oklch(0.55 0.2 25);margin-bottom:4px">Query: required — field is blank</div>
+              <div style="font-size:11.5px;color:oklch(0.55 0.03 280)">Categories: Computer Science · Mathematics</div>
+              <div style="font-size:11.5px;color:oklch(0.55 0.03 280)">Max records: 5,000</div>
+            </div>
+            <div style="border:1px solid oklch(0.9 0.02 280);padding:10px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                <span style="font-size:11px;font-weight:700;padding:2px 6px;background:oklch(0.75 0.12 300 / 0.16);color:oklch(0.45 0.12 300)">DOAJ</span>
+                <span style="font-size:11px;color:oklch(0.55 0.2 25);cursor:pointer">Remove</span>
+              </div>
+              <div style="font-size:11.5px;color:oklch(0.55 0.03 280);margin-bottom:4px">Label: "DOAJ — open access ML"</div>
+              <div style="font-size:11.5px;color:oklch(0.55 0.03 280)">Categories: Computer Science</div>
+              <div style="font-size:11.5px;color:oklch(0.55 0.03 280)">Max records: 2,000</div>
+            </div>
+            <button style="height:28px;border:1px dashed oklch(0.9 0.02 280);background:transparent;font-size:11.5px;color:oklch(0.55 0.03 280);cursor:pointer;font-family:inherit">+ Add target</button>
+          </div>
+        </div>
+
+        <div style="border:1px solid oklch(0.9 0.02 280)">
+          <div style="padding:10px 14px;background:oklch(0.95 0.02 280);display:flex;align-items:center;gap:8px">
+            <span style="width:20px;height:20px;border-radius:50%;background:oklch(0.45 0.16 280 / 0.14);color:oklch(0.45 0.16 280);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;font-family:ui-monospace,monospace">3</span>
+            <span style="font-size:12.5px;font-weight:600">Review &amp; save</span>
+          </div>
+          <div style="padding:16px 14px;display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;justify-content:space-between;font-size:12.5px"><span style="color:oklch(0.55 0.03 280)">Targets</span><span style="font-weight:600">2</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:12.5px"><span style="color:oklch(0.55 0.03 280)">Sources</span><span style="font-weight:600">Semantic Scholar, DOAJ</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:12.5px"><span style="color:oklch(0.55 0.03 280)">Combined max records</span><span style="font-weight:600">7,000</span></div>
+            <div style="height:1px;background:oklch(0.9 0.02 280);margin:2px 0"></div>
+            <button style="height:32px;background:oklch(0.9 0.02 280 / 0.5);color:oklch(0.55 0.03 280);border:none;font-size:12.5px;font-weight:600;cursor:not-allowed;font-family:inherit">Save schedule</button>
+            <div style="font-size:11px;color:oklch(0.55 0.2 25)">Fix the blank Semantic Scholar query above to enable saving.</div>
+          </div>
+        </div>
+      </div>
+
+      <h3 style="font-size:11px;text-transform:uppercase;letter-spacing:0.07em;color:oklch(0.55 0.03 280);font-weight:600;margin:0 0 14px;padding-bottom:8px;border-bottom:1px solid oklch(0.9 0.02 280)">Run-now flow — every step, shown at once</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;align-items:start">
+
+        <div style="border:1px solid oklch(0.9 0.02 280)">
+          <div style="padding:8px 12px;background:oklch(0.95 0.02 280);font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:oklch(0.55 0.03 280)">Estimate — under threshold</div>
+          <div style="padding:14px;display:flex;flex-direction:column;gap:10px">
+            <div style="font-size:12.5px;line-height:1.5">1 target, ~40 requests, ~<strong>2 min</strong> estimated.</div>
+            <button style="height:30px;background:oklch(0.45 0.16 280);color:#fff;border:none;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit">Confirm run</button>
+          </div>
+        </div>
+
+        <div style="border:1px solid oklch(0.55 0.2 25 / 0.35)">
+          <div style="padding:8px 12px;background:oklch(0.55 0.2 25 / 0.1);font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:oklch(0.55 0.2 25)">Estimate — escalated confirm</div>
+          <div style="padding:14px;display:flex;flex-direction:column;gap:10px">
+            <div style="font-size:12.5px;line-height:1.5">8 targets, ~4,200 requests, ~<strong>3.5 hr</strong> estimated.</div>
+            <div style="font-size:11.5px;padding:8px 10px;background:oklch(0.68 0.15 80 / 0.12);color:oklch(0.5 0.15 80)">No S2_API_KEY configured — shared rate pool may slow this further.</div>
+            <div style="font-size:11.5px;font-weight:600;color:oklch(0.55 0.2 25)">This exceeds the safe threshold. Type CONFIRM to proceed.</div>
+            <div style="height:30px;border:1px solid oklch(0.9 0.02 280);padding:0 8px;display:flex;align-items:center;font-size:12px;color:oklch(0.55 0.03 280)">CONFIRM</div>
+            <button style="height:30px;background:oklch(0.9 0.02 280 / 0.5);color:oklch(0.55 0.03 280);border:none;font-size:12.5px;font-weight:600;cursor:not-allowed;font-family:inherit">Run anyway</button>
+          </div>
+        </div>
+
+        <div style="border:1px solid oklch(0.9 0.02 280)">
+          <div style="padding:8px 12px;background:oklch(0.95 0.02 280);font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:oklch(0.55 0.03 280)">Root admin — no escalation</div>
+          <div style="padding:14px;display:flex;flex-direction:column;gap:10px">
+            <div style="font-size:12.5px;line-height:1.5">8 targets, ~4,200 requests, ~<strong>3.5 hr</strong> estimated.</div>
+            <div style="font-size:11px;padding:6px 8px;background:oklch(0.45 0.16 280 / 0.1);color:oklch(0.45 0.16 280);font-weight:600">Root admin — override not required</div>
+            <button style="height:30px;background:oklch(0.55 0.2 25);color:#fff;border:none;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit">Run anyway</button>
+          </div>
+        </div>
+
+        <div style="border:1px solid oklch(0.9 0.02 280)">
+          <div style="padding:8px 12px;background:oklch(0.95 0.02 280);font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:oklch(0.55 0.03 280)">Progress — running, partial failure</div>
+          <div style="padding:14px;display:flex;flex-direction:column;gap:10px">
+            <div style="height:6px;background:oklch(0.95 0.02 280);overflow:hidden"><div style="height:100%;width:60%;background:oklch(0.45 0.16 280)"></div></div>
+            <div style="font-size:12.5px;display:flex;justify-content:space-between">
+              <span>6 / 10 completed</span>
+              <span style="color:oklch(0.55 0.2 25);font-weight:600">2 failed</span>
+            </div>
+            <div style="font-size:11.5px;color:oklch(0.55 0.03 280)">Elapsed 18 min · estimated 30 min</div>
+            <button style="height:28px;background:transparent;border:1px solid oklch(0.55 0.2 25 / 0.4);color:oklch(0.55 0.2 25);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Cancel remaining</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{ isHistory }}" hint-placeholder-val="{{ false }}">
+    <div>
+      <header style="margin-bottom:24px">
+        <h1 style="font-size:22px;font-weight:700;margin:0 0 4px;letter-spacing:-0.01em">Crawl history</h1>
+        <p style="font-size:13px;color:oklch(0.55 0.03 280);margin:0">Every run, across every schedule — for debugging what happened and why.</p>
+      </header>
+
+      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px">
+        <div style="height:30px;border:1px solid oklch(0.9 0.02 280);padding:0 10px;display:flex;align-items:center;gap:6px;font-size:12.5px">
+          <span style="color:oklch(0.55 0.03 280)">Source</span><span style="font-weight:600">All</span><span style="color:oklch(0.55 0.03 280)">⌄</span>
+        </div>
+        <div style="height:30px;border:1px solid oklch(0.9 0.02 280);padding:0 10px;display:flex;align-items:center;gap:6px;font-size:12.5px">
+          <span style="color:oklch(0.55 0.03 280)">Status</span><span style="font-weight:600">All</span><span style="color:oklch(0.55 0.03 280)">⌄</span>
+        </div>
+        <div style="height:30px;border:1px solid oklch(0.9 0.02 280);padding:0 10px;display:flex;align-items:center;gap:6px;font-size:12.5px">
+          <span style="color:oklch(0.55 0.03 280)">Date range</span><span style="font-weight:600">Last 30 days</span><span style="color:oklch(0.55 0.03 280)">⌄</span>
+        </div>
+      </div>
+
+      <div style="border:1px solid oklch(0.9 0.02 280);margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 16px;background:oklch(0.95 0.02 280);font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:oklch(0.55 0.03 280)">
+          <span style="width:120px;flex-shrink:0">Started</span>
+          <span style="width:90px;flex-shrink:0">Source</span>
+          <span style="width:78px;flex-shrink:0">Status</span>
+          <span style="flex:1;min-width:100px">Found / inserted / skipped</span>
+          <span style="width:70px;flex-shrink:0">Duration</span>
+          <span style="flex:1;min-width:120px">Schedule</span>
+        </div>
+
+        <sc-for list="{{ historyRows }}" as="r" hint-placeholder-count="8">
+          <div>
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid oklch(0.9 0.02 280);font-size:12.5px;{{ r.rowStyle }}">
+              <span style="width:120px;flex-shrink:0;font-variant-numeric:tabular-nums">{{ r.started }}</span>
+              <span style="width:90px;flex-shrink:0">{{ r.source }}</span>
+              <span style="{{ r.chipStyle }}">{{ r.statusLabel }}</span>
+              <span style="flex:1;min-width:100px;color:oklch(0.55 0.03 280);font-variant-numeric:tabular-nums">{{ r.counts }}</span>
+              <span style="width:70px;flex-shrink:0;color:oklch(0.55 0.03 280);font-variant-numeric:tabular-nums">{{ r.duration }}</span>
+              <span style="flex:1;min-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.schedule }}</span>
+            </div>
+            <sc-if value="{{ r.expanded }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:14px 16px 16px 16px;background:oklch(0.95 0.02 280 / 0.5);border-bottom:1px solid oklch(0.9 0.02 280);font-size:12px;display:flex;flex-direction:column;gap:10px">
+                <div>
+                  <div style="font-weight:600;color:oklch(0.55 0.2 25);margin-bottom:4px">Errors (2)</div>
+                  <div style="color:oklch(0.55 0.03 280);font-family:ui-monospace,monospace;font-size:11.5px;line-height:1.6">
+                    HTTP 429 from Semantic Scholar — rate limited after 3 requests (target: "S2 — ML core")<br />
+                    <span style="{{ r.truncated }}">Timeout waiting for OAI-PMH resumption token after 30s on target "S2 — ML core", retried 3x and gave up, see job log ref crawl-8842-b for full stack trace and upstream response headers</span>
+                    <a href="#" style="font-size:11px;font-weight:600;margin-left:4px">Show more</a>
+                  </div>
+                </div>
+                <div>
+                  <div style="font-weight:600;color:oklch(0.55 0.03 280);margin-bottom:4px">Options used</div>
+                  <div style="color:oklch(0.55 0.03 280);display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:4px 16px">
+                    <span>Query: "transformer efficiency"</span>
+                    <span>Categories: Computer Science</span>
+                    <span>Max records: 5,000</span>
+                    <span>Since: 2026-06-01</span>
+                  </div>
+                </div>
+                <a href="#" style="font-size:12px;font-weight:600;width:fit-content">Back to schedule →</a>
+              </div>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;font-size:12.5px;color:oklch(0.55 0.03 280);margin-bottom:36px">
+        <span>Showing 1–8 of 214 runs</span>
+        <div style="display:flex;gap:4px">
+          <button style="height:26px;padding:0 10px;background:transparent;border:1px solid oklch(0.9 0.02 280);font-size:11.5px;cursor:not-allowed;color:oklch(0.55 0.03 280);font-family:inherit">← Prev</button>
+          <button style="height:26px;padding:0 10px;background:oklch(0.45 0.16 280);color:#fff;border:none;font-size:11.5px;font-weight:600;cursor:pointer;font-family:inherit">1</button>
+          <button style="height:26px;padding:0 10px;background:transparent;border:1px solid oklch(0.9 0.02 280);font-size:11.5px;cursor:pointer;font-family:inherit">2</button>
+          <button style="height:26px;padding:0 10px;background:transparent;border:1px solid oklch(0.9 0.02 280);font-size:11.5px;cursor:pointer;font-family:inherit">3</button>
+          <button style="height:26px;padding:0 10px;background:transparent;border:1px solid oklch(0.9 0.02 280);font-size:11.5px;cursor:pointer;font-family:inherit">Next →</button>
+        </div>
+      </div>
+
+      <div style="font-size:11px;color:oklch(0.55 0.03 280);border-top:1px solid oklch(0.9 0.02 280);padding-top:10px">
+        Row 3 above is expanded to show error &amp; option detail; row background differs for the <strong>running</strong> status to read distinctly from finished rows even before the chip is read.
+      </div>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{ isUsers }}" hint-placeholder-val="{{ false }}">
+    <div>
+      <header style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px">
+        <div>
+          <h1 style="font-size:22px;font-weight:700;margin:0 0 4px;letter-spacing:-0.01em">Users</h1>
+          <p style="font-size:13px;color:oklch(0.55 0.03 280);margin:0">Staff access — there is no public sign-up, this is the only way an account gets created.</p>
+        </div>
+        <button style="height:32px;padding:0 16px;background:oklch(0.45 0.16 280);color:#fff;border:none;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;flex-shrink:0">+ Create account</button>
+      </header>
+
+      <div style="border:1px solid oklch(0.9 0.02 280);margin-bottom:20px">
+        <div style="display:flex;align-items:center;gap:12px;padding:8px 16px;background:oklch(0.95 0.02 280);font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:oklch(0.55 0.03 280)">
+          <span style="flex:2;min-width:140px">Email / name</span>
+          <span style="width:90px;flex-shrink:0">Role</span>
+          <span style="width:70px;flex-shrink:0">Status</span>
+          <span style="width:90px;flex-shrink:0">Created</span>
+          <span style="width:190px;flex-shrink:0;text-align:right">Actions</span>
+        </div>
+
+        <sc-for list="{{ users }}" as="u" hint-placeholder-count="5">
+          <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid oklch(0.9 0.02 280)">
+            <div style="flex:2;min-width:140px">
+              <div style="font-size:13px;font-weight:600">{{ u.name }}</div>
+              <div style="font-size:11.5px;color:oklch(0.55 0.03 280)">{{ u.email }}</div>
+            </div>
+            <span style="width:90px;flex-shrink:0;{{ u.roleChipStyle }}">{{ u.roleLabel }}</span>
+            <span style="width:70px;flex-shrink:0;{{ u.statusChipStyle }}">{{ u.statusLabel }}</span>
+            <span style="width:90px;flex-shrink:0;font-size:12px;color:oklch(0.55 0.03 280)">{{ u.created }}</span>
+            <div style="width:190px;flex-shrink:0;display:flex;gap:6px;justify-content:flex-end">
+              <button style="height:26px;padding:0 9px;background:transparent;border:1px solid oklch(0.9 0.02 280);font-size:11px;cursor:pointer;font-family:inherit">Sessions</button>
+              <button disabled="{{ u.isRoot }}" style="{{ u.roleBtnStyle }}">Role</button>
+              <button disabled="{{ u.isRoot }}" style="{{ u.banBtnStyle }}">{{ u.banLabel }}</button>
+            </div>
+          </div>
+          <sc-if value="{{ u.isRoot }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:0 16px 10px;margin-top:-10px;font-size:11px;color:oklch(0.55 0.03 280)">Root admin cannot be modified — role, ban, and remove are disabled for this account.</div>
+          </sc-if>
+        </sc-for>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px">
+        <div style="border:1px solid oklch(0.9 0.02 280)">
+          <div style="padding:8px 12px;background:oklch(0.95 0.02 280);font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:oklch(0.55 0.03 280)">Sessions panel — for reference</div>
+          <div style="padding:14px;display:flex;flex-direction:column;gap:8px">
+            <div style="font-size:12px;font-weight:600">m.reyes@scholarseek.dev</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;font-size:11.5px;padding:6px 0;border-bottom:1px solid oklch(0.9 0.02 280)">
+              <span style="color:oklch(0.55 0.03 280)">Chrome · San Francisco — active now</span>
+              <a href="#" style="font-weight:600;font-size:11px;color:oklch(0.55 0.2 25)">Revoke</a>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;font-size:11.5px;padding:6px 0">
+              <span style="color:oklch(0.55 0.03 280)">Safari · Boston — 4d ago</span>
+              <a href="#" style="font-weight:600;font-size:11px;color:oklch(0.55 0.2 25)">Revoke</a>
+            </div>
+            <button style="height:28px;margin-top:4px;background:transparent;border:1px solid oklch(0.55 0.2 25 / 0.4);color:oklch(0.55 0.2 25);font-size:11.5px;font-weight:600;cursor:pointer;font-family:inherit">Revoke all sessions</button>
+          </div>
+        </div>
+
+        <div style="border:1px solid oklch(0.9 0.02 280)">
+          <div style="padding:8px 12px;background:oklch(0.55 0.2 25 / 0.1);font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:oklch(0.55 0.2 25)">Ban confirmation — for reference</div>
+          <div style="padding:14px;display:flex;flex-direction:column;gap:10px">
+            <div style="font-size:12.5px;line-height:1.5">Ban <strong>j.moss@scholarseek.dev</strong>? They'll be signed out everywhere and won't be able to sign back in until unbanned.</div>
+            <div style="display:flex;gap:8px">
+              <button style="flex:1;height:30px;background:transparent;border:1px solid oklch(0.9 0.02 280);font-size:12px;cursor:pointer;font-family:inherit">Cancel</button>
+              <button style="flex:1;height:30px;background:oklch(0.55 0.2 25);color:#fff;border:none;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Ban user</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+  </main>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { tab: "overview" };
+
+  navStyle(tab) {
+    const active = this.state.tab === tab;
+    return `display:block;width:100%;text-align:left;padding:7px 8px;margin-bottom:1px;font-size:13px;font-weight:${active ? 600 : 500};border:none;cursor:pointer;font-family:inherit;background:${active ? "oklch(0.45 0.16 280 / 0.1)" : "transparent"};color:${active ? "oklch(0.45 0.16 280)" : "oklch(0.4 0.03 280)"};border-left:2px solid ${active ? "oklch(0.45 0.16 280)" : "transparent"}`;
+  }
+
+  chip(status) {
+    const map = {
+      completed: ["oklch(0.55 0.14 145 / 0.14)", "oklch(0.4 0.14 145)"],
+      failed: ["oklch(0.55 0.2 25 / 0.12)", "oklch(0.55 0.2 25)"],
+      running: ["oklch(0.68 0.15 80 / 0.16)", "oklch(0.5 0.15 80)"],
+      cancelled: ["oklch(0.95 0.02 280)", "oklch(0.55 0.03 280)"],
+    };
+    const [bg, fg] = map[status] || map.cancelled;
+    return `font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;padding:3px 7px;width:78px;flex-shrink:0;text-align:center;background:${bg};color:${fg}`;
+  }
+
+  sourceBadge(source) {
+    const map = {
+      arxiv: ["oklch(0.45 0.16 280 / 0.12)", "oklch(0.4 0.16 280)", "arXiv"],
+      semantic_scholar: ["oklch(0.65 0.14 250 / 0.14)", "oklch(0.4 0.14 250)", "Semantic Scholar"],
+      doaj: ["oklch(0.75 0.12 300 / 0.16)", "oklch(0.45 0.12 300)", "DOAJ"],
+    };
+    const [bg, fg, label] = map[source];
+    return { label, style: `font-size:10.5px;font-weight:700;padding:2px 6px;background:${bg};color:${fg}` };
+  }
+
+  roleChip(role) {
+    const map = {
+      root_admin: ["oklch(0.45 0.16 280)", "#fff", "root admin"],
+      admin: ["oklch(0.45 0.16 280 / 0.12)", "oklch(0.4 0.16 280)", "admin"],
+      user: ["oklch(0.95 0.02 280)", "oklch(0.55 0.03 280)", "user"],
+    };
+    const [bg, fg, label] = map[role];
+    return { label, style: `font-size:10.5px;font-weight:700;padding:3px 7px;background:${bg};color:${fg};text-align:center;display:inline-block` };
+  }
+
+  userStatusChip(status) {
+    const map = {
+      active: ["oklch(0.55 0.14 145 / 0.14)", "oklch(0.4 0.14 145)", "active"],
+      banned: ["oklch(0.55 0.2 25 / 0.12)", "oklch(0.55 0.2 25)", "banned"],
+    };
+    const [bg, fg, label] = map[status];
+    return { label, style: `font-size:10.5px;font-weight:700;padding:3px 7px;background:${bg};color:${fg};text-align:center;display:inline-block;text-transform:uppercase` };
+  }
+
+  disabledBtn(base) {
+    return `height:26px;padding:0 9px;background:transparent;border:1px solid oklch(0.9 0.02 280);font-size:11px;font-family:inherit;color:oklch(0.55 0.03 280 / 0.5);cursor:not-allowed`;
+  }
+  activeBtn(destructive) {
+    return `height:26px;padding:0 9px;background:transparent;border:1px solid ${destructive ? "oklch(0.55 0.2 25 / 0.4)" : "oklch(0.9 0.02 280)"};font-size:11px;font-family:inherit;color:${destructive ? "oklch(0.55 0.2 25)" : "inherit"};cursor:pointer`;
+  }
+
+  renderVals() {
+    const t = this.state.tab;
+
+    const historyRaw = [
+      { started: "Aug 1, 09:14", source: "arXiv", status: "completed", found: 412, inserted: 398, skipped: 14, duration: "6m 10s", schedule: "Daily arXiv sweep" },
+      { started: "Aug 1, 08:02", source: "Semantic Scholar", status: "failed", found: 120, inserted: 88, skipped: 4, duration: "2m 40s", schedule: "S2 — machine learning" },
+      { started: "Aug 1, 07:31", source: "arXiv", status: "running", found: 240, inserted: 210, skipped: 8, duration: "18m —", schedule: "Backfill — full history", expanded: true },
+      { started: "Jul 31, 23:00", source: "DOAJ", status: "completed", found: 89, inserted: 71, skipped: 18, duration: "1m 05s", schedule: "DOAJ — open access" },
+      { started: "Jul 31, 03:25", source: "arXiv", status: "completed", found: 380, inserted: 380, skipped: 0, duration: "5m 52s", schedule: "Daily arXiv sweep" },
+      { started: "Jul 30, 14:12", source: "DOAJ", status: "failed", found: 0, inserted: 0, skipped: 0, duration: "0m 08s", schedule: "Failing DOAJ crawl" },
+      { started: "Jul 30, 02:00", source: "Semantic Scholar", status: "cancelled", found: 640, inserted: 402, skipped: 12, duration: "22m 00s", schedule: "Multi-source weekly" },
+      { started: "Jul 29, 03:25", source: "arXiv", status: "completed", found: 401, inserted: 390, skipped: 11, duration: "6m 02s", schedule: "Daily arXiv sweep" },
+    ];
+    const historyRows = historyRaw.map((r) => ({
+      ...r,
+      statusLabel: r.status.toUpperCase(),
+      chipStyle: this.chip(r.status),
+      counts: `${r.found} / ${r.inserted} / ${r.skipped}`,
+      rowStyle: r.status === "running" ? "background:oklch(0.68 0.15 80 / 0.06)" : "",
+      truncated: "",
+    }));
+
+    const usersRaw = [
+      { name: "Root Admin", email: "root@scholarseek.dev", role: "root_admin", status: "active", created: "Jan 4, 2025", isRoot: true },
+      { name: "Priya Nair", email: "p.nair@scholarseek.dev", role: "admin", status: "active", created: "Mar 12, 2025", isRoot: false },
+      { name: "Marcus Reyes", email: "m.reyes@scholarseek.dev", role: "admin", status: "active", created: "Jun 2, 2025", isRoot: false },
+      { name: "Jordan Moss", email: "j.moss@scholarseek.dev", role: "admin", status: "banned", created: "Feb 20, 2026", isRoot: false },
+    ];
+    const users = usersRaw.map((u) => {
+      const role = this.roleChip(u.role);
+      const status = this.userStatusChip(u.status);
+      return {
+        ...u,
+        roleLabel: role.label,
+        roleChipStyle: role.style,
+        statusLabel: status.label,
+        statusChipStyle: status.style,
+        roleBtnStyle: u.isRoot ? this.disabledBtn() : this.activeBtn(false),
+        banBtnStyle: u.isRoot ? this.disabledBtn() : this.activeBtn(true),
+        banLabel: u.status === "banned" ? "Unban" : "Ban",
+      };
+    });
+    const activity = [
+      { statusLabel: "COMPLETED", status: "completed", source: "arXiv", schedule: "Daily arXiv sweep", detail: "412 found · 398 new", time: "1h ago" },
+      { statusLabel: "FAILED", status: "failed", source: "Semantic Scholar", schedule: "S2 — machine learning", detail: "3/8 targets", time: "2h ago" },
+      { statusLabel: "RUNNING", status: "running", source: "arXiv", schedule: "Backfill — full history", detail: "6/10 targets", time: "41m ago" },
+      { statusLabel: "COMPLETED", status: "completed", source: "DOAJ", schedule: "DOAJ — open access", detail: "89 found · 71 new", time: "6h ago" },
+      { statusLabel: "COMPLETED", status: "completed", source: "arXiv", schedule: "Daily arXiv sweep", detail: "380 found · 380 new", time: "1d ago" },
+      { statusLabel: "FAILED", status: "failed", source: "DOAJ", schedule: "Failing DOAJ crawl", detail: "0/1 targets", time: "1d ago" },
+      { statusLabel: "CANCELLED", status: "cancelled", source: "Semantic Scholar", schedule: "Multi-source weekly", detail: "2/5 targets", time: "2d ago" },
+      { statusLabel: "COMPLETED", status: "completed", source: "arXiv", schedule: "Daily arXiv sweep", detail: "401 found · 390 new", time: "2d ago" },
+      { statusLabel: "COMPLETED", status: "completed", source: "DOAJ", schedule: "DOAJ — open access", detail: "64 found · 52 new", time: "3d ago" },
+      { statusLabel: "COMPLETED", status: "completed", source: "Semantic Scholar", schedule: "S2 — machine learning", detail: "1,204 found · 1,180 new", time: "3d ago" },
+    ].map((r) => ({ ...r, chipStyle: this.chip(r.status) }));
+
+    const scheduleData = [
+      { name: "Daily arXiv sweep", cadenceHuman: "Daily at 03:25", cron: "25 3 * * *", sources: ["arxiv"], targetCount: 1, enabled: true, lastRun: "completed", lastRunTime: "3h ago" },
+      { name: "S2 — machine learning", cadenceHuman: "Custom cron", cron: "0 */6 * * *", sources: ["semantic_scholar"], targetCount: 1, enabled: true, lastRun: "failed", lastRunTime: "2h ago" },
+      { name: "Multi-source weekly", cadenceHuman: "Weekly on Sun at 02:00", cron: "0 2 * * 0", sources: ["arxiv", "doaj"], targetCount: 3, enabled: false, lastRun: "cancelled", lastRunTime: "2d ago" },
+      { name: "Backfill — full history", cadenceHuman: "Custom cron", cron: "0 0 1 * *", sources: ["arxiv", "semantic_scholar", "doaj"], targetCount: 10, enabled: true, lastRun: "running", lastRunTime: "started 41m ago" },
+    ].map((s) => ({
+      ...s,
+      cadenceHuman: s.cadenceHuman,
+      enabledDotStyle: `background:${s.enabled ? "oklch(0.55 0.14 145)" : "oklch(0.9 0.02 280)"}`,
+      sourceBadges: s.sources.map((src) => this.sourceBadge(src)),
+      toggleLabel: s.enabled ? "Disable" : "Enable",
+      lastRunLabel: s.lastRun.toUpperCase(),
+      lastRunChipStyle: this.chip(s.lastRun),
+    }));
+
+    return {
+      isOverview: t === "overview",
+      isSchedules: t === "schedules",
+      isHistory: t === "history",
+      isUsers: t === "users",
+      navStyle_overview: this.navStyle("overview"),
+      navStyle_schedules: this.navStyle("schedules"),
+      navStyle_history: this.navStyle("history"),
+      navStyle_users: this.navStyle("users"),
+      goOverview: () => this.setState({ tab: "overview" }),
+      goSchedules: () => this.setState({ tab: "schedules" }),
+      goHistory: () => this.setState({ tab: "history" }),
+      goUsers: () => this.setState({ tab: "users" }),
+      activityRows: activity,
+      schedules: scheduleData,
+      historyRows,
+      users,
+    };
+  }
+}
+</script>
+</body>
+</html>
