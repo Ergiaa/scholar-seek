@@ -23,6 +23,7 @@ export async function startCrawl(
 		until: body.until,
 		categories: body.categories,
 		maxRecords: body.maxRecords,
+		language: body.language,
 	};
 
 	// Create history record up-front so the client can track progress immediately

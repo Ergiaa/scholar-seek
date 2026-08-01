@@ -47,6 +47,16 @@ export const crawlScheduleTarget = pgTable(
 		query: varchar("query", { length: 300 }),
 		categories: jsonb("categories").$type<string[]>(),
 		max_records: integer("max_records").notNull(),
+		// Explicit date-range override — when set, always used verbatim on
+		// every run instead of the default "since last successful crawl for
+		// this target" incremental window (schedule-service.ts). ISO date
+		// strings (YYYY-MM-DD), not a real date/timestamp column, to match
+		// the CrawlOptions shape they're passed through as untouched.
+		since: varchar("since", { length: 10 }),
+		until: varchar("until", { length: 10 }),
+		// DOAJ-only OAI-PMH language filter (ISO 639-2, e.g. "eng"). Unset
+		// means no language filtering — every other source ignores this.
+		language: varchar("language", { length: 10 }),
 	},
 	(table) => [
 		index("crawl_schedule_target_schedule_id_idx").on(table.schedule_id),

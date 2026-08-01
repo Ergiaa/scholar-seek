@@ -4,6 +4,7 @@ export type { NewPaper } from "@scholar-seek/db/schema/papers";
 
 export interface CrawlOptions {
 	categories?: string[]; // arxiv: ["cs", "cs.AI"]; semantic_scholar: ["Computer Science"]
+	language?: string; // ISO 639-2 code, e.g. "eng" — doaj only, ignored elsewhere
 	maxRecords?: number; // safety cap
 	query?: string; // search query — required by the semantic_scholar source
 	since?: string; // ISO date YYYY-MM-DD

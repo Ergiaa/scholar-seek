@@ -16,11 +16,6 @@ const BATCH_SIZE = 100;
 const REQUEST_DELAY_MS = 1100;
 const MAX_RETRIES = 3;
 
-// Only the language scoping the old REST version enforced (Indonesian-only
-// journals) needs to carry over. oai_doaj:language is a single three-letter
-// ISO 639-2 code — "ind", not the REST version's two-letter "id".
-const LANGUAGE_FILTER = "ind";
-
 const WHITESPACE_RE = /\s+/g;
 
 const parser = new XMLParser({
@@ -109,7 +104,10 @@ function extractResumptionToken(
 	return token["#text"] || undefined;
 }
 
-function mapRecord(record: OaiRecord): NewPaper | null {
+function mapRecord(
+	record: OaiRecord,
+	language: string | undefined
+): NewPaper | null {
 	if (record.header?.["@_status"] === "deleted") {
 		return null;
 	}
@@ -119,11 +117,10 @@ function mapRecord(record: OaiRecord): NewPaper | null {
 		return null;
 	}
 
-	// The old REST version scoped every query to Indonesian-language journals
-	// unconditionally (bibjson.journal.language:id) — a record with no
-	// language at all wouldn't have matched that query either, so it's
-	// excluded here too, not just records with a different language.
-	if (meta.language?.trim() !== LANGUAGE_FILTER) {
+	// Admin-configured per target (schedule-service.ts) — unset means no
+	// language filtering. A record with no language at all never matches an
+	// explicit filter, same as one with a different language.
+	if (language && meta.language?.trim() !== language) {
 		return null;
 	}
 
@@ -169,6 +166,7 @@ function mapRecord(record: OaiRecord): NewPaper | null {
 
 async function fetchPage(
 	url: string,
+	language: string | undefined,
 	attempt = 0
 ): Promise<{ records: NewPaper[]; resumptionToken?: string }> {
 	let res: Response;
@@ -178,7 +176,7 @@ async function fetchPage(
 	} catch (err) {
 		if (attempt < MAX_RETRIES) {
 			await sleep(REQUEST_DELAY_MS * (attempt + 1));
-			return fetchPage(url, attempt + 1);
+			return fetchPage(url, language, attempt + 1);
 		}
 		throw new Error(
 			`DOAJ fetch failed after ${MAX_RETRIES} retries: ${String(err)}`
@@ -189,7 +187,7 @@ async function fetchPage(
 		const delay = REQUEST_DELAY_MS * 2 ** attempt;
 		if (attempt < MAX_RETRIES) {
 			await sleep(delay);
-			return fetchPage(url, attempt + 1);
+			return fetchPage(url, language, attempt + 1);
 		}
 		throw new Error("DOAJ rate limit exceeded — too many retries");
 	}
@@ -222,7 +220,7 @@ async function fetchPage(
 
 	const rawRecords: OaiRecord[] = listRecords.record ?? [];
 	const records = rawRecords
-		.map(mapRecord)
+		.map((r) => mapRecord(r, language))
 		.filter((r): r is NewPaper => r !== null);
 	const resumptionToken = extractResumptionToken(listRecords.resumptionToken);
 
@@ -267,7 +265,7 @@ export const doajAdapter: SourceAdapter = {
 
 		yield* harvestUnitsSequentially(
 			units,
-			fetchPage,
+			(url) => fetchPage(url, options.language),
 			maxRecords,
 			BATCH_SIZE,
 			REQUEST_DELAY_MS

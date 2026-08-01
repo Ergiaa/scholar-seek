@@ -19,6 +19,9 @@ export const CrawlOptionsBody = t.Object({
 		t.Array(t.String({ maxLength: 100 }), { maxItems: 20 })
 	),
 	maxRecords: t.Optional(t.Number({ minimum: 1, maximum: 50_000 })),
+	// DOAJ-only OAI-PMH language filter (ISO 639-2, e.g. "eng"). Ignored by
+	// every other source.
+	language: t.Optional(t.String({ minLength: 2, maxLength: 10 })),
 });
 
 export const StartCrawlResponse = t.Object({
@@ -89,6 +92,14 @@ export const ScheduleTargetBody = t.Object({
 		t.Array(t.String({ maxLength: 100 }), { maxItems: 20 })
 	),
 	maxRecords: t.Number({ minimum: 1, maximum: 50_000 }),
+	// Explicit date-range override — when set, used verbatim on every run
+	// instead of the default "since last successful crawl" incremental
+	// window (schedule-service.ts).
+	since: t.Optional(t.String({ pattern: "^\\d{4}-\\d{2}-\\d{2}$" })),
+	until: t.Optional(t.String({ pattern: "^\\d{4}-\\d{2}-\\d{2}$" })),
+	// DOAJ-only OAI-PMH language filter (ISO 639-2, e.g. "eng"). Ignored by
+	// every other source.
+	language: t.Optional(t.String({ minLength: 2, maxLength: 10 })),
 });
 
 export const CreateScheduleBody = t.Object({
@@ -121,6 +132,9 @@ export const ScheduleTargetResponse = t.Object({
 	query: t.Union([t.String(), t.Null()]),
 	categories: t.Union([t.Array(t.String()), t.Null()]),
 	maxRecords: t.Number(),
+	since: t.Union([t.String(), t.Null()]),
+	until: t.Union([t.String(), t.Null()]),
+	language: t.Union([t.String(), t.Null()]),
 });
 
 export const ScheduleResponse = t.Object({

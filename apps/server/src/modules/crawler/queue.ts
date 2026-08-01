@@ -332,12 +332,18 @@ export async function runSchedule(
 
 	const q = getCrawlQueue();
 	for (const target of targets) {
-		const since = await getLastSuccessfulCrawlDateForTarget(target.id);
+		// An explicit since/until on the target always wins — it means the
+		// admin wants a specific period, not the incremental "since last
+		// successful crawl" window every other target gets by default.
+		const since =
+			target.since ?? (await getLastSuccessfulCrawlDateForTarget(target.id));
 		const options: CrawlOptions = {
 			query: target.query ?? undefined,
 			categories: target.categories ?? undefined,
 			maxRecords: target.max_records,
 			since,
+			until: target.until ?? undefined,
+			language: target.language ?? undefined,
 		};
 
 		const [historyRow] = await db

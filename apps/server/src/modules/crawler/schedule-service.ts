@@ -144,7 +144,13 @@ function validateCronPattern(pattern: string): void {
 // carries its own source, so this validates per-target rather than once for
 // the whole schedule.
 function validateTargetsForSource(
-	targets: { label: string; source: string; query?: string }[]
+	targets: {
+		label: string;
+		source: string;
+		query?: string;
+		since?: string;
+		until?: string;
+	}[]
 ): void {
 	const missingQuery = targets.find(
 		(t) => t.source === "semantic_scholar" && !t.query?.trim()
@@ -152,6 +158,15 @@ function validateTargetsForSource(
 	if (missingQuery) {
 		throw status(400, {
 			error: `Target "${missingQuery.label}" requires a query for the semantic_scholar source`,
+		});
+	}
+
+	const invalidRange = targets.find(
+		(t) => t.since && t.until && t.since > t.until
+	);
+	if (invalidRange) {
+		throw status(400, {
+			error: `Target "${invalidRange.label}" has a date range where "since" is after "until"`,
 		});
 	}
 }
@@ -202,6 +217,9 @@ async function toScheduleResponse(
 			query: t.query,
 			categories: t.categories,
 			maxRecords: t.max_records,
+			since: t.since,
+			until: t.until,
+			language: t.language,
 		})),
 		lastRun: lastRun
 			? {
@@ -251,6 +269,9 @@ export async function createSchedule(
 			query: t.query,
 			categories: t.categories,
 			max_records: t.maxRecords,
+			since: t.since,
+			until: t.until,
+			language: t.language,
 		}))
 	);
 
@@ -297,6 +318,9 @@ export async function updateSchedule(
 				query: t.query,
 				categories: t.categories,
 				max_records: t.maxRecords,
+				since: t.since,
+				until: t.until,
+				language: t.language,
 			}))
 		);
 	}
