@@ -8,6 +8,7 @@ import {
 	startCrawlWorker,
 	stopCrawlWorker,
 } from "./modules/crawler/queue";
+import { ensureDefaultSchedules } from "./modules/crawler/schedule-service";
 import { papersModule } from "./modules/papers";
 
 const app = new Elysia()
@@ -49,9 +50,9 @@ app.listen(3000, () => {
 	console.log(
 		`🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`
 	);
-	ensureRootAdmin().catch((err) =>
-		console.error("[auth] failed to ensure root admin:", err.message)
-	);
+	ensureRootAdmin()
+		.then(() => ensureDefaultSchedules())
+		.catch((err) => console.error("[auth] boot seeding failed:", err.message));
 	cleanupStuckJobs()
 		.catch((err) => console.warn("[crawler] cleanup skipped:", err.message))
 		.then(() => startCrawlWorker());
