@@ -22,6 +22,13 @@
       "when": 1775193915736,
       "tag": "0002_broken_psynapse",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785562578946,
+      "tag": "0003_wild_hammerhead",
+      "breakpoints": true
     }
   ]
 }

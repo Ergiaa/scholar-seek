@@ -1,6 +1,7 @@
 import { cors } from "@elysiajs/cors";
 import { env } from "@scholar-seek/env/server";
 import { Elysia } from "elysia";
+import { auth, ensureRootAdmin } from "./lib/auth";
 import { crawlerModule } from "./modules/crawler";
 import {
 	cleanupStuckJobs,
@@ -26,8 +27,15 @@ const app = new Elysia()
 		cors({
 			origin: env.CORS_ORIGIN,
 			methods: ["GET", "POST", "OPTIONS"],
+			credentials: true,
 		})
 	)
+	.all("/api/auth/*", ({ request, status }) => {
+		if (request.method === "GET" || request.method === "POST") {
+			return auth.handler(request);
+		}
+		return status(405);
+	})
 	.use(papersModule)
 	.use(crawlerModule)
 	.get("/", () => "OK", {
@@ -41,7 +49,12 @@ app.listen(3000, () => {
 	console.log(
 		`🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`
 	);
-	cleanupStuckJobs().then(() => startCrawlWorker());
+	ensureRootAdmin().catch((err) =>
+		console.error("[auth] failed to ensure root admin:", err.message)
+	);
+	cleanupStuckJobs()
+		.catch((err) => console.warn("[crawler] cleanup skipped:", err.message))
+		.then(() => startCrawlWorker());
 });
 
 async function shutdown() {

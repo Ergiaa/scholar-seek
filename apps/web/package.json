@@ -20,6 +20,7 @@
     "@tanstack/react-router-with-query": "^1.130.17",
     "@tanstack/react-start": "^1.141.1",
     "@tanstack/router-plugin": "^1.141.1",
+    "better-auth": "^1.6.25",
     "dotenv": "catalog:",
     "katex": "^0.16.44",
     "lucide-react": "catalog:",
