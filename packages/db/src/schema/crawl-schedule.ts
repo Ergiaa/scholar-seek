@@ -16,7 +16,6 @@ export const crawlSchedule = pgTable(
 	{
 		id: uuid("id").defaultRandom().primaryKey(),
 		name: varchar("name", { length: 255 }).notNull(),
-		source: varchar("source", { length: 100 }).notNull(),
 		cron_pattern: varchar("cron_pattern", { length: 100 }).notNull(),
 		enabled: boolean("enabled").default(true).notNull(),
 		created_by: text("created_by").references(() => user.id, {
@@ -33,10 +32,7 @@ export const crawlSchedule = pgTable(
 		// and crawl_schedule_run rows keep valid references.
 		deleted_at: timestamp("deleted_at", { withTimezone: true }),
 	},
-	(table) => [
-		index("crawl_schedule_source_idx").on(table.source),
-		index("crawl_schedule_enabled_idx").on(table.enabled),
-	]
+	(table) => [index("crawl_schedule_enabled_idx").on(table.enabled)]
 );
 
 export const crawlScheduleTarget = pgTable(
@@ -47,12 +43,14 @@ export const crawlScheduleTarget = pgTable(
 			.notNull()
 			.references(() => crawlSchedule.id, { onDelete: "cascade" }),
 		label: varchar("label", { length: 255 }).notNull(),
+		source: varchar("source", { length: 100 }).notNull(),
 		query: varchar("query", { length: 300 }),
 		categories: jsonb("categories").$type<string[]>(),
 		max_records: integer("max_records").notNull(),
 	},
 	(table) => [
 		index("crawl_schedule_target_schedule_id_idx").on(table.schedule_id),
+		index("crawl_schedule_target_source_idx").on(table.source),
 	]
 );
 

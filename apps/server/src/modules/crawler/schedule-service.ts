@@ -19,6 +19,7 @@ import type {
 	UpdateScheduleBodyType,
 } from "./model";
 import {
+	estimatedRunSeconds,
 	estimateTotalRequests,
 	removeQueuedRunJobs,
 	removeScheduleTrigger,
@@ -28,6 +29,7 @@ import {
 
 interface DefaultTargetConfig {
 	label: string;
+	source: string;
 	query?: string;
 	categories?: string[];
 	maxRecords: number;
@@ -35,7 +37,6 @@ interface DefaultTargetConfig {
 
 interface DefaultScheduleConfig {
 	name: string;
-	source: string;
 	cronPattern: string;
 	targets: DefaultTargetConfig[];
 }
@@ -60,22 +61,20 @@ const SEMANTIC_SCHOLAR_DEFAULT_FIELDS = [
 const DEFAULT_SCHEDULES: DefaultScheduleConfig[] = [
 	{
 		name: "Daily arXiv crawl",
-		source: "arxiv",
 		cronPattern: "25 3 * * *",
-		targets: [{ label: "arxiv daily", maxRecords: 5000 }],
+		targets: [{ label: "arxiv daily", source: "arxiv", maxRecords: 5000 }],
 	},
 	{
 		name: "Daily DOAJ crawl",
-		source: "doaj",
 		cronPattern: "30 3 * * *",
-		targets: [{ label: "doaj daily", maxRecords: 5000 }],
+		targets: [{ label: "doaj daily", source: "doaj", maxRecords: 5000 }],
 	},
 	{
 		name: "Daily Semantic Scholar crawl",
-		source: "semantic_scholar",
 		cronPattern: "35 3 * * *",
 		targets: SEMANTIC_SCHOLAR_DEFAULT_FIELDS.map((field) => ({
 			label: `semantic_scholar daily — ${field}`,
+			source: "semantic_scholar",
 			query: field,
 			categories: [field],
 			maxRecords: 1000,
@@ -107,7 +106,6 @@ export async function ensureDefaultSchedules(): Promise<void> {
 			.insert(crawlSchedule)
 			.values({
 				name: config.name,
-				source: config.source,
 				cron_pattern: config.cronPattern,
 				created_by: rootAdmin.id,
 			})
@@ -121,6 +119,7 @@ export async function ensureDefaultSchedules(): Promise<void> {
 			config.targets.map((t) => ({
 				schedule_id: schedule.id,
 				label: t.label,
+				source: t.source,
 				query: t.query,
 				categories: t.categories,
 				max_records: t.maxRecords,
@@ -141,15 +140,15 @@ function validateCronPattern(pattern: string): void {
 
 // Mirrors the same rule startCrawl() enforces for ad-hoc /crawl/start jobs —
 // semantic_scholar's bulk search has no "everything since X" mode, so a
-// target without a query would silently fail on every run.
+// target without a query would silently fail on every run. Each target now
+// carries its own source, so this validates per-target rather than once for
+// the whole schedule.
 function validateTargetsForSource(
-	source: string,
-	targets: { label: string; query?: string }[]
+	targets: { label: string; source: string; query?: string }[]
 ): void {
-	if (source !== "semantic_scholar") {
-		return;
-	}
-	const missingQuery = targets.find((t) => !t.query?.trim());
+	const missingQuery = targets.find(
+		(t) => t.source === "semantic_scholar" && !t.query?.trim()
+	);
 	if (missingQuery) {
 		throw status(400, {
 			error: `Target "${missingQuery.label}" requires a query for the semantic_scholar source`,
@@ -191,7 +190,6 @@ async function toScheduleResponse(
 	return {
 		id: schedule.id,
 		name: schedule.name,
-		source: schedule.source,
 		cronPattern: schedule.cron_pattern,
 		enabled: schedule.enabled,
 		createdBy: schedule.created_by,
@@ -200,6 +198,7 @@ async function toScheduleResponse(
 		targets: targets.map((t) => ({
 			id: t.id,
 			label: t.label,
+			source: t.source,
 			query: t.query,
 			categories: t.categories,
 			maxRecords: t.max_records,
@@ -229,13 +228,12 @@ export async function createSchedule(
 	createdBy: string
 ): Promise<ScheduleResponseType> {
 	validateCronPattern(body.cronPattern);
-	validateTargetsForSource(body.source, body.targets);
+	validateTargetsForSource(body.targets);
 
 	const [schedule] = await db
 		.insert(crawlSchedule)
 		.values({
 			name: body.name,
-			source: body.source,
 			cron_pattern: body.cronPattern,
 			created_by: createdBy,
 		})
@@ -249,6 +247,7 @@ export async function createSchedule(
 		body.targets.map((t) => ({
 			schedule_id: schedule.id,
 			label: t.label,
+			source: t.source,
 			query: t.query,
 			categories: t.categories,
 			max_records: t.maxRecords,
@@ -269,7 +268,7 @@ export async function updateSchedule(
 		validateCronPattern(body.cronPattern);
 	}
 	if (body.targets) {
-		validateTargetsForSource(existing.source, body.targets);
+		validateTargetsForSource(body.targets);
 	}
 
 	const [updated] = await db
@@ -294,6 +293,7 @@ export async function updateSchedule(
 			body.targets.map((t) => ({
 				schedule_id: id,
 				label: t.label,
+				source: t.source,
 				query: t.query,
 				categories: t.categories,
 				max_records: t.maxRecords,
@@ -319,9 +319,12 @@ export async function deleteSchedule(id: string): Promise<void> {
 export async function estimateRun(
 	scheduleId: string
 ): Promise<RunEstimateResponseType> {
-	const schedule = await getActiveScheduleOrThrow(scheduleId);
+	await getActiveScheduleOrThrow(scheduleId);
 	const targets = await db
-		.select({ max_records: crawlScheduleTarget.max_records })
+		.select({
+			max_records: crawlScheduleTarget.max_records,
+			source: crawlScheduleTarget.source,
+		})
 		.from(crawlScheduleTarget)
 		.where(eq(crawlScheduleTarget.schedule_id, scheduleId));
 
@@ -330,10 +333,11 @@ export async function estimateRun(
 		scheduleId,
 		targetCount: targets.length,
 		totalRequestsEstimate,
-		estimatedSeconds: Math.round(totalRequestsEstimate * 1.1),
+		estimatedSeconds: estimatedRunSeconds(totalRequestsEstimate),
 		requiresOverride:
 			totalRequestsEstimate > env.CRAWL_RUN_SOFT_THRESHOLD_REQUESTS,
-		sharedPoolWarning: schedule.source === "semantic_scholar" && !env.S2_API_KEY,
+		sharedPoolWarning:
+			targets.some((t) => t.source === "semantic_scholar") && !env.S2_API_KEY,
 	};
 }
 

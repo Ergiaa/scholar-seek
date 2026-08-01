@@ -1,7 +1,10 @@
 import { db } from "@scholar-seek/db";
-import { crawlHistory } from "@scholar-seek/db/schema/crawl-history";
-import { desc, eq } from "drizzle-orm";
-import type { CrawlOptionsBodyType, CrawlStatusResponseType } from "./model";
+import { crawlHistory, type CrawlStatus } from "@scholar-seek/db/schema/crawl-history";
+import { and, count, desc, eq, gte, lte, type SQL } from "drizzle-orm";
+import type {
+	CrawlOptionsBodyType,
+	CrawlStatusResponseType,
+} from "./model";
 import { getCrawlQueue } from "./queue";
 
 export async function startCrawl(
@@ -60,8 +63,14 @@ export async function getCrawlStatus(
 		return null;
 	}
 
+	return toCrawlStatusResponse(row);
+}
+
+function toCrawlStatusResponse(
+	row: typeof crawlHistory.$inferSelect
+): CrawlStatusResponseType {
 	return {
-		jobId,
+		jobId: row.job_id,
 		historyId: row.id,
 		source: row.source,
 		status: row.status,
@@ -75,26 +84,66 @@ export async function getCrawlStatus(
 	};
 }
 
-export async function getCrawlHistory(
-	limit = 20
-): Promise<CrawlStatusResponseType[]> {
-	const rows = await db
-		.select()
-		.from(crawlHistory)
-		.orderBy(desc(crawlHistory.started_at))
-		.limit(Math.min(limit, 100));
+export interface CrawlHistoryParams {
+	source?: string;
+	status?: CrawlStatus;
+	since?: string;
+	until?: string;
+	page?: number;
+	pageSize?: number;
+}
 
-	return rows.map((row) => ({
-		jobId: row.job_id,
-		historyId: row.id,
-		source: row.source,
-		status: row.status,
-		papersFound: row.papers_found,
-		papersInserted: row.papers_inserted,
-		papersSkipped: row.papers_skipped,
-		errors: row.errors ?? [],
-		startedAt: row.started_at.toISOString(),
-		completedAt: row.completed_at?.toISOString() ?? null,
-		durationMs: row.duration_ms,
-	}));
+// Mirrors papers/service.ts's buildFilterConditions pattern — conditionally
+// composed and()/eq()/gte()/lte(), applied to crawl_history instead of papers.
+function buildCrawlHistoryFilterConditions(
+	params: CrawlHistoryParams
+): (SQL | undefined)[] {
+	const conditions: (SQL | undefined)[] = [];
+
+	if (params.source) {
+		conditions.push(eq(crawlHistory.source, params.source));
+	}
+	if (params.status) {
+		conditions.push(eq(crawlHistory.status, params.status));
+	}
+	if (params.since) {
+		conditions.push(gte(crawlHistory.started_at, new Date(params.since)));
+	}
+	if (params.until) {
+		conditions.push(lte(crawlHistory.started_at, new Date(params.until)));
+	}
+
+	return conditions;
+}
+
+export async function getCrawlHistory(params: CrawlHistoryParams): Promise<{
+	history: CrawlStatusResponseType[];
+	total: number;
+	page: number;
+	pageSize: number;
+}> {
+	const page = Math.max(1, params.page ?? 1);
+	const pageSize = Math.min(100, Math.max(1, params.pageSize ?? 20));
+	const offset = (page - 1) * pageSize;
+
+	const conditions = buildCrawlHistoryFilterConditions(params);
+	const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+	const [rows, countResult] = await Promise.all([
+		db
+			.select()
+			.from(crawlHistory)
+			.where(whereClause)
+			.orderBy(desc(crawlHistory.started_at))
+			.limit(pageSize)
+			.offset(offset),
+		db.select({ count: count() }).from(crawlHistory).where(whereClause),
+	]);
+
+	return {
+		history: rows.map(toCrawlStatusResponse),
+		total: Number(countResult[0]?.count ?? 0),
+		page,
+		pageSize,
+	};
 }

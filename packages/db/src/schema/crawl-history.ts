@@ -7,7 +7,11 @@ import {
 	uuid,
 	varchar,
 } from "drizzle-orm/pg-core";
-import { crawlSchedule, crawlScheduleRun } from "./crawl-schedule";
+import {
+	crawlSchedule,
+	crawlScheduleRun,
+	crawlScheduleTarget,
+} from "./crawl-schedule";
 
 export const crawlStatus = ["completed", "failed", "running"] as const;
 export type CrawlStatus = (typeof crawlStatus)[number];
@@ -38,6 +42,9 @@ export const crawlHistory = pgTable(
 		run_id: uuid("run_id").references(() => crawlScheduleRun.id, {
 			onDelete: "set null",
 		}),
+		target_id: uuid("target_id").references(() => crawlScheduleTarget.id, {
+			onDelete: "set null",
+		}),
 	},
 	(table) => [
 		index("crawl_history_source_idx").on(table.source),
@@ -45,6 +52,7 @@ export const crawlHistory = pgTable(
 		index("crawl_history_status_idx").on(table.status),
 		index("crawl_history_schedule_id_idx").on(table.schedule_id),
 		index("crawl_history_run_id_idx").on(table.run_id),
+		index("crawl_history_target_id_idx").on(table.target_id),
 	]
 );
 

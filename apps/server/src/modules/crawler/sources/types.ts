@@ -10,7 +10,16 @@ export interface CrawlOptions {
 	until?: string; // ISO date YYYY-MM-DD
 }
 
+export interface CrawlBatch {
+	// Which category produced this batch — undefined when the target ran
+	// with no category filter. Adapters that fan out across multiple
+	// categories internally (arxiv, doaj) yield one unambiguous category per
+	// batch; semantic_scholar yields its one static category for every batch.
+	category: string | undefined;
+	papers: NewPaper[];
+}
+
 export interface SourceAdapter {
-	crawl(options: CrawlOptions): AsyncGenerator<NewPaper[]>;
+	crawl(options: CrawlOptions): AsyncGenerator<CrawlBatch>;
 	readonly name: string;
 }

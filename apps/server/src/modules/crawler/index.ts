@@ -4,6 +4,7 @@ import { authGuard } from "../../lib/auth-guard";
 import {
 	CreateScheduleBody,
 	CrawlHistoryQuery,
+	CrawlHistoryResponse,
 	CrawlJobParams,
 	CrawlOptionsBody,
 	CrawlStatusResponse,
@@ -16,6 +17,7 @@ import {
 	ScheduleIdParams,
 	ScheduleResponse,
 	StartCrawlResponse,
+	StatsResponse,
 	UpdateScheduleBody,
 } from "./model";
 import { getCrawlHistory, getCrawlStatus, startCrawl } from "./service";
@@ -29,6 +31,12 @@ import {
 	listSchedules,
 	updateSchedule,
 } from "./schedule-service";
+import {
+	ARXIV_TAXONOMY,
+	DOAJ_LCC_TERMS,
+	FIELDS_OF_STUDY,
+} from "./source-taxonomies";
+import { getStats } from "./stats-service";
 
 export const crawlerModule = new Elysia({
 	name: "module.crawler",
@@ -84,18 +92,25 @@ export const crawlerModule = new Elysia({
 	)
 	.get(
 		"/crawl/history",
-		({ query }) => {
-			const limit = query.limit ? Number(query.limit) : 20;
-			return getCrawlHistory(limit);
-		},
+		({ query }) =>
+			getCrawlHistory({
+				source: query.source,
+				status: query.status,
+				since: query.since,
+				until: query.until,
+				page: query.page ? Number(query.page) : undefined,
+				pageSize: query.pageSize ? Number(query.pageSize) : undefined,
+			}),
 		{
 			query: "crawlHistoryQuery",
 			response: {
-				200: t.Array(CrawlStatusResponse),
+				200: CrawlHistoryResponse,
 			},
 			detail: {
 				summary: "List crawl history",
-				description: "Return recent crawl job history, newest first.",
+				description:
+					"Paginated, filterable crawl job history, newest first. Filter " +
+					"by source, status, and a date range on startedAt.",
 				tags: ["crawler"],
 			},
 		}
@@ -111,6 +126,36 @@ export const crawlerModule = new Elysia({
 				"unknown",
 		})
 	)
+	.get(
+		"/crawl/taxonomies",
+		() => ({
+			arxiv: ARXIV_TAXONOMY,
+			doaj: DOAJ_LCC_TERMS,
+			semanticScholar: FIELDS_OF_STUDY,
+		}),
+		{
+			adminOnly: true,
+			detail: {
+				summary: "List category taxonomies for the schedule target picker",
+				description:
+					"Full native taxonomy per source — arXiv's 155 codes grouped by " +
+					"archive, DOAJ's 538 LCC terms with their setSpec tokens, and " +
+					"Semantic Scholar's canonical fields of study.",
+				tags: ["crawler", "admin"],
+			},
+		}
+	)
+	.get("/crawl/stats", () => getStats(), {
+		adminOnly: true,
+		response: { 200: StatsResponse },
+		detail: {
+			summary: "Overview page stats",
+			description:
+				"Aggregated paper/schedule/run stats for the admin Overview page. " +
+				"Cached for ~45s; invalidated proactively after every successful crawl.",
+			tags: ["crawler", "admin"],
+		},
+	})
 	.get("/crawl/schedules", () => listSchedules(), {
 		adminOnly: true,
 		response: { 200: t.Array(ScheduleResponse) },

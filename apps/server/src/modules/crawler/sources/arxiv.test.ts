@@ -42,6 +42,23 @@ const VALID_RECORD_XML = `
 	</metadata>
 </record>`;
 
+const ASTRO_RECORD_XML = `
+<record>
+	<header><identifier>oai:arXiv.org:2102.00002</identifier></header>
+	<metadata>
+		<arXiv>
+			<id>2102.00002</id>
+			<created>2021-02-05</created>
+			<title>A Galaxy Paper</title>
+			<abstract>An astro abstract.</abstract>
+			<authors>
+				<author>Vera Rubin</author>
+			</authors>
+			<categories>astro-ph.GA</categories>
+		</arXiv>
+	</metadata>
+</record>`;
+
 const DELETED_RECORD_XML = `
 <record>
 	<header status="deleted"><identifier>oai:arXiv.org:9999.00000</identifier></header>
@@ -64,10 +81,22 @@ function noRecordsMatchXml() {
 </OAI-PMH>`;
 }
 
-async function collect(gen: AsyncGenerator<NewPaper[]>): Promise<NewPaper[]> {
+async function collect(
+	gen: AsyncGenerator<{ category: string | undefined; papers: NewPaper[] }>
+): Promise<NewPaper[]> {
 	const out: NewPaper[] = [];
+	for await (const { papers } of gen) {
+		out.push(...papers);
+	}
+	return out;
+}
+
+async function collectBatches(
+	gen: AsyncGenerator<{ category: string | undefined; papers: NewPaper[] }>
+): Promise<{ category: string | undefined; papers: NewPaper[] }[]> {
+	const out: { category: string | undefined; papers: NewPaper[] }[] = [];
 	for await (const batch of gen) {
-		out.push(...batch);
+		out.push(batch);
 	}
 	return out;
 }
@@ -164,5 +193,33 @@ describe("arxivAdapter.crawl", () => {
 		await expect(collect(arxivAdapter.crawl({}))).rejects.toThrow(
 			RATE_LIMIT_RE
 		);
+	});
+
+	it("fans out across multiple top-level groups and yields results from both", async () => {
+		const fetchMock = mock<FetchFn>((url: RequestInfo | URL) => {
+			const urlStr = String(url);
+			if (urlStr.includes("set=cs")) {
+				return Promise.resolve(xmlResponse(listRecordsXml(VALID_RECORD_XML)));
+			}
+			if (urlStr.includes("set=astro-ph")) {
+				return Promise.resolve(xmlResponse(listRecordsXml(ASTRO_RECORD_XML)));
+			}
+			return Promise.resolve(xmlResponse(noRecordsMatchXml()));
+		});
+		globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+		const batches = await collectBatches(
+			arxivAdapter.crawl({ categories: ["cs.LG", "astro-ph.GA"] })
+		);
+		const papers = batches.flatMap((b) => b.papers);
+
+		// Both groups' papers must appear — this is the exact bug the group-based
+		// fan-out fixes: the old code only ever fetched the first category's
+		// group, so astro-ph.GA's paper would silently never appear.
+		expect(papers.map((p) => p.source_id).sort()).toEqual([
+			"2101.00001",
+			"2102.00002",
+		]);
+		expect(batches.map((b) => b.category).sort()).toEqual(["astro-ph", "cs"]);
 	});
 });

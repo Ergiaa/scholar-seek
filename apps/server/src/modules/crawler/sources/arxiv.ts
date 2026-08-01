@@ -1,5 +1,6 @@
 import { sleep } from "bun";
 import { XMLParser } from "fast-xml-parser";
+import { type HarvestUnit, harvestUnitsSequentially } from "./oai-pmh";
 import type { CrawlOptions, NewPaper, SourceAdapter } from "./types";
 
 const OAI_BASE = "https://export.arxiv.org/oai2";
@@ -58,7 +59,12 @@ interface OaiResponse {
 	};
 }
 
-function buildUrl(options: CrawlOptions, resumptionToken?: string): string {
+function buildUrl(
+	since: string | undefined,
+	until: string | undefined,
+	set: string | undefined,
+	resumptionToken?: string
+): string {
 	if (resumptionToken) {
 		return `${OAI_BASE}?verb=ListRecords&resumptionToken=${encodeURIComponent(resumptionToken)}`;
 	}
@@ -68,23 +74,56 @@ function buildUrl(options: CrawlOptions, resumptionToken?: string): string {
 		metadataPrefix: "arXiv",
 	});
 
-	if (options.since) {
-		params.set("from", options.since);
+	if (since) {
+		params.set("from", since);
 	}
-	if (options.until) {
-		params.set("until", options.until);
+	if (until) {
+		params.set("until", until);
 	}
-
-	if (options.categories?.length) {
-		// OAI-PMH only supports top-level sets (e.g. "cs", "math").
-		// Subcategories like "cs.LG" are not valid sets — strip the suffix.
-		const topLevel = options.categories[0]?.split(".")[0];
-		if (topLevel) {
-			params.set("set", topLevel);
-		}
+	// OAI-PMH only supports top-level sets (e.g. "cs", "math").
+	if (set) {
+		params.set("set", set);
 	}
 
 	return `${OAI_BASE}?${params}`;
+}
+
+/**
+ * Groups requested categories by top-level prefix (e.g. "cs.LG", "cs.AI" ->
+ * group "cs"; "astro-ph.GA" -> group "astro-ph"). Each distinct group gets
+ * its own full harvest — a single OAI-PMH `set` fetch only ever returns one
+ * group's papers, so a target spanning groups needs one harvest per group,
+ * not one fetch post-filtered against every requested code (the latter is
+ * the pre-existing bug this fixes: papers from any group other than the
+ * first-requested category's group could never match, and silently never
+ * appeared).
+ *
+ * A bare top-level category (no ".") means "whole group, no subfilter" —
+ * `null` in the returned map signals that; once a group is marked `null` it
+ * stays that way even if a subcode for the same group is also present.
+ */
+function groupCategories(
+	categories: string[]
+): Map<string, string[] | null> {
+	const groups = new Map<string, string[] | null>();
+	for (const cat of categories) {
+		const group = cat.split(".")[0];
+		if (!group) {
+			continue;
+		}
+		if (!cat.includes(".")) {
+			groups.set(group, null);
+			continue;
+		}
+		const existing = groups.get(group);
+		if (existing === null) {
+			continue;
+		}
+		const subcodes = existing ?? [];
+		subcodes.push(cat);
+		groups.set(group, subcodes);
+	}
+	return groups;
 }
 
 function extractResumptionToken(
@@ -225,41 +264,35 @@ async function fetchPage(
 export const arxivAdapter: SourceAdapter = {
 	name: "arxiv",
 
-	async *crawl(options: CrawlOptions): AsyncGenerator<NewPaper[]> {
-		let url = buildUrl(options);
-		let totalYielded = 0;
+	async *crawl(
+		options: CrawlOptions
+	): AsyncGenerator<{ category: string | undefined; papers: NewPaper[] }> {
 		const maxRecords = options.maxRecords ?? Number.POSITIVE_INFINITY;
-		// Subcategories that need post-fetch filtering (e.g. ["cs.LG", "cs.AI"])
-		const subcategories = (options.categories ?? []).filter((c) =>
-			c.includes(".")
+		const groups = groupCategories(options.categories ?? []);
+
+		const groupEntries: [string | undefined, string[] | null][] =
+			groups.size > 0 ? [...groups.entries()] : [[undefined, null]];
+
+		const units: HarvestUnit<NewPaper>[] = groupEntries.map(
+			([group, subcodes]) => ({
+				category: group,
+				buildInitialUrl: () =>
+					buildUrl(options.since, options.until, group, undefined),
+				buildResumeUrl: (token: string) =>
+					buildUrl(undefined, undefined, undefined, token),
+				filterRecords: subcodes
+					? (records) =>
+							records.filter((p) => p.keywords?.some((k) => subcodes.includes(k)))
+					: undefined,
+			})
 		);
 
-		while (true) {
-			const { records, resumptionToken } = await fetchPage(url);
-
-			if (records.length > 0) {
-				// Filter to requested subcategories when specified
-				const filtered =
-					subcategories.length > 0
-						? records.filter((p) =>
-								p.keywords?.some((k) => subcategories.includes(k))
-							)
-						: records;
-
-				const batch = filtered.slice(0, maxRecords - totalYielded);
-				// Yield in BATCH_SIZE chunks so the worker can insert incrementally
-				for (let i = 0; i < batch.length; i += BATCH_SIZE) {
-					yield batch.slice(i, i + BATCH_SIZE);
-				}
-				totalYielded += batch.length;
-			}
-
-			if (!resumptionToken || totalYielded >= maxRecords) {
-				break;
-			}
-
-			url = buildUrl(options, resumptionToken);
-			await sleep(REQUEST_DELAY_MS);
-		}
+		yield* harvestUnitsSequentially(
+			units,
+			fetchPage,
+			maxRecords,
+			BATCH_SIZE,
+			REQUEST_DELAY_MS
+		);
 	},
 };

@@ -1,184 +1,167 @@
 import { sleep } from "bun";
+import { XMLParser } from "fast-xml-parser";
+import { DOAJ_LCC_TERMS } from "../source-taxonomies";
+import { type HarvestUnit, harvestUnitsSequentially } from "./oai-pmh";
 import type { CrawlOptions, NewPaper, SourceAdapter } from "./types";
 
-const API_BASE = "https://doaj.org/api/v3/search/articles";
-const PAGE_SIZE = 100;
+// Targets store the human-readable LCC label (matching what the taxonomy
+// picker shows) — the opaque setSpec token isn't derivable from it, so it's
+// looked up here at request-build time rather than stored on the target.
+const LABEL_TO_SET_SPEC = new Map(
+	DOAJ_LCC_TERMS.map((t) => [t.label, t.setSpec])
+);
+
+const OAI_BASE = "https://doaj.org/oai.article";
+const BATCH_SIZE = 100;
 const REQUEST_DELAY_MS = 1100;
 const MAX_RETRIES = 3;
 
-/**
- * Maps Semantic Scholar field-of-study names to DOAJ LCC subject terms.
- * Used to translate the shared `categories` option into DOAJ query filters.
- * Fallback: unrecognised strings are passed through as-is.
- */
-const S2_TO_LCC: Record<string, string> = {
-	"Computer Science": "Computer science",
-	Mathematics: "Mathematics",
-	Physics: "Physics",
-	Biology: "Biology (General)",
-	Chemistry: "Chemistry",
-	Medicine: "Medicine",
-	Engineering: "Engineering (General). Civil engineering (General)",
-	Economics: "Economics as a science",
-	Psychology: "Psychology",
-	Sociology: "Sociology (General)",
-	History: "History (General) and history of Europe",
-	Philosophy: "Philosophy (General)",
-	Art: "Arts in general",
-	"Political Science": "Political science (General)",
-	Geography: "Geography (General)",
-	Geology: "Geology",
-	"Environmental Science": "Environmental sciences",
-	"Materials Science": "Materials of engineering and construction. Mechanics of materials",
-	Linguistics: "Language and languages",
-	Education: "Education (General)",
-	Law: "Law in general. Comparative and uniform law. Jurisprudence",
-	Business: "Business",
-	"Agricultural and Food Sciences": "Agriculture (General)",
-	"Art and Humanities": "Arts in general",
-	"Social Sciences": "Social sciences (General)",
-};
+// Only the language scoping the old REST version enforced (Indonesian-only
+// journals) needs to carry over. oai_doaj:language is a single three-letter
+// ISO 639-2 code — "ind", not the REST version's two-letter "id".
+const LANGUAGE_FILTER = "ind";
+
+const WHITESPACE_RE = /\s+/g;
+
+const parser = new XMLParser({
+	ignoreAttributes: false,
+	attributeNamePrefix: "@_",
+	removeNSPrefix: true,
+	isArray: (name) =>
+		["author", "keyword", "affiliationName", "record"].includes(name),
+	parseTagValue: false,
+	processEntities: { maxTotalExpansions: 100_000 },
+});
 
 interface DoajAuthor {
 	name?: string;
 }
 
-interface DoajIdentifier {
-	id?: string;
-	type?: string;
-}
-
-interface DoajLink {
-	type?: string;
-	url?: string;
-}
-
-interface DoajSubject {
-	scheme?: string;
-	term?: string;
-}
-
-interface DoajJournal {
-	language?: string[];
-	title?: string;
-}
-
-interface DoajBibjson {
+interface DoajArticleMetadata {
 	abstract?: string;
-	author?: DoajAuthor[];
-	identifier?: DoajIdentifier[];
-	journal?: DoajJournal;
-	keywords?: string[];
-	link?: DoajLink[];
-	month?: string;
-	subject?: DoajSubject[];
+	authors?: { author?: DoajAuthor[] };
+	doi?: string;
+	fullTextUrl?: string | { "#text"?: string };
+	journalTitle?: string;
+	keywords?: { keyword?: string[] };
+	language?: string;
+	publicationDate?: string;
 	title?: string;
-	year?: string;
 }
 
-interface DoajArticle {
-	bibjson?: DoajBibjson;
-	id?: string;
+interface OaiRecord {
+	header?: { "@_status"?: string };
+	metadata?: { doajArticle?: DoajArticleMetadata };
 }
 
-interface DoajSearchResponse {
-	results?: DoajArticle[];
-	total?: number;
-	page?: number;
-	pageSize?: number;
+interface OaiResponse {
+	"OAI-PMH"?: {
+		ListRecords?: {
+			record?: OaiRecord[];
+			resumptionToken?:
+				| string
+				| { "#text"?: string; "@_completeListSize"?: string };
+		};
+		error?: { "#text"?: string; "@_code"?: string };
+	};
 }
 
-function categoryToLcc(category: string): string {
-	return S2_TO_LCC[category] ?? category;
-}
-
-function buildQuery(options: CrawlOptions): string {
-	const clauses: string[] = [];
-
-	// Always restrict to Indonesian-language journals
-	clauses.push("bibjson.journal.language:id");
-
-	if (options.query?.trim()) {
-		clauses.push(options.query.trim());
+function buildUrl(
+	since: string | undefined,
+	until: string | undefined,
+	set: string | undefined,
+	resumptionToken?: string
+): string {
+	if (resumptionToken) {
+		return `${OAI_BASE}?verb=ListRecords&resumptionToken=${encodeURIComponent(resumptionToken)}`;
 	}
 
-	if (options.categories?.length) {
-		const subjectClauses = options.categories
-			.map((c) => `bibjson.subject.term:"${categoryToLcc(c)}"`)
-			.join(" OR ");
-		clauses.push(`(${subjectClauses})`);
-	}
-
-	if (options.since && options.until) {
-		const from = options.since.slice(0, 4);
-		const to = options.until.slice(0, 4);
-		clauses.push(`bibjson.year:[${from} TO ${to}]`);
-	} else if (options.since) {
-		clauses.push(`bibjson.year:>=${options.since.slice(0, 4)}`);
-	} else if (options.until) {
-		clauses.push(`bibjson.year:<=${options.until.slice(0, 4)}`);
-	}
-
-	return clauses.join(" AND ");
-}
-
-function buildUrl(options: CrawlOptions, page: number): string {
-	const query = buildQuery(options);
 	const params = new URLSearchParams({
-		pageSize: String(PAGE_SIZE),
-		page: String(page),
+		verb: "ListRecords",
+		metadataPrefix: "oai_doaj",
 	});
-	return `${API_BASE}/${encodeURIComponent(query)}?${params}`;
+
+	if (since) {
+		params.set("from", since);
+	}
+	if (until) {
+		params.set("until", until);
+	}
+	if (set) {
+		params.set("set", set);
+	}
+
+	return `${OAI_BASE}?${params}`;
 }
 
-function mapArticle(article: DoajArticle): NewPaper | null {
-	const bib = article.bibjson;
-	if (!bib?.title) {
+function extractResumptionToken(
+	token:
+		| string
+		| { "#text"?: string; "@_completeListSize"?: string }
+		| undefined
+): string | undefined {
+	if (!token) {
+		return undefined;
+	}
+	if (typeof token === "string") {
+		return token || undefined;
+	}
+	return token["#text"] || undefined;
+}
+
+function mapRecord(record: OaiRecord): NewPaper | null {
+	if (record.header?.["@_status"] === "deleted") {
 		return null;
 	}
 
-	const doi =
-		bib.identifier?.find((i) => i.type === "doi")?.id?.trim() ?? null;
+	const meta = record.metadata?.doajArticle;
+	if (!meta?.title) {
+		return null;
+	}
 
+	// The old REST version scoped every query to Indonesian-language journals
+	// unconditionally (bibjson.journal.language:id) — a record with no
+	// language at all wouldn't have matched that query either, so it's
+	// excluded here too, not just records with a different language.
+	if (meta.language?.trim() !== LANGUAGE_FILTER) {
+		return null;
+	}
+
+	const doi = meta.doi?.trim() ?? null;
 	const sourceUrl =
-		bib.link?.find((l) => l.type === "fulltext")?.url?.trim() ??
-		(doi ? `https://doi.org/${doi}` : null);
-
+		(typeof meta.fullTextUrl === "object"
+			? meta.fullTextUrl["#text"]
+			: meta.fullTextUrl
+		)?.trim() ?? (doi ? `https://doi.org/${doi}` : null);
 	if (!sourceUrl) {
 		return null;
 	}
 
 	let publishedAt: Date | null = null;
-	if (bib.year) {
-		const dateStr = bib.month
-			? `${bib.year}-${bib.month.padStart(2, "0")}-01`
-			: `${bib.year}-01-01`;
-		const d = new Date(dateStr);
+	if (meta.publicationDate) {
+		const d = new Date(meta.publicationDate);
 		if (!Number.isNaN(d.getTime())) {
 			publishedAt = d;
 		}
 	}
 
-	const keywords = [
-		...(bib.keywords ?? []),
-		...(bib.subject ?? [])
-			.map((s) => s.term)
-			.filter((t): t is string => Boolean(t)),
-	];
+	const keywords = (meta.keywords?.keyword ?? [])
+		.map((k) => k.trim())
+		.filter(Boolean);
 
 	return {
-		title: bib.title.trim(),
-		abstract: bib.abstract?.trim() || null,
-		authors: (bib.author ?? [])
-			.map((a) => a.name)
+		title: meta.title.replace(WHITESPACE_RE, " ").trim(),
+		abstract: meta.abstract?.replace(WHITESPACE_RE, " ").trim() || null,
+		authors: (meta.authors?.author ?? [])
+			.map((a) => a.name?.trim())
 			.filter((n): n is string => Boolean(n)),
 		published_at: publishedAt,
-		journal: bib.journal?.title?.trim() ?? null,
+		journal: meta.journalTitle?.trim() ?? null,
 		doi,
 		keywords: keywords.length > 0 ? [...new Set(keywords)] : null,
 		source_url: sourceUrl,
 		source: "doaj",
-		source_id: article.id ?? sourceUrl,
+		source_id: sourceUrl,
 		citation_count: 0,
 		embedding_stored: false,
 	};
@@ -187,13 +170,11 @@ function mapArticle(article: DoajArticle): NewPaper | null {
 async function fetchPage(
 	url: string,
 	attempt = 0
-): Promise<DoajSearchResponse> {
+): Promise<{ records: NewPaper[]; resumptionToken?: string }> {
 	let res: Response;
 
 	try {
-		res = await fetch(url, {
-			headers: { Accept: "application/json" },
-		});
+		res = await fetch(url);
 	} catch (err) {
 		if (attempt < MAX_RETRIES) {
 			await sleep(REQUEST_DELAY_MS * (attempt + 1));
@@ -217,48 +198,79 @@ async function fetchPage(
 		throw new Error(`DOAJ responded with HTTP ${res.status}`);
 	}
 
-	return (await res.json()) as DoajSearchResponse;
+	const xml = await res.text();
+	const parsed = parser.parse(xml) as OaiResponse;
+	const oai = parsed["OAI-PMH"];
+
+	if (!oai) {
+		throw new Error("Unexpected OAI-PMH response shape");
+	}
+
+	if (oai.error) {
+		const code = oai.error["@_code"];
+		const msg = oai.error["#text"];
+		if (code === "noRecordsMatch") {
+			return { records: [] };
+		}
+		throw new Error(`OAI-PMH error [${code}]: ${msg}`);
+	}
+
+	const listRecords = oai.ListRecords;
+	if (!listRecords) {
+		return { records: [] };
+	}
+
+	const rawRecords: OaiRecord[] = listRecords.record ?? [];
+	const records = rawRecords
+		.map(mapRecord)
+		.filter((r): r is NewPaper => r !== null);
+	const resumptionToken = extractResumptionToken(listRecords.resumptionToken);
+
+	return { records, resumptionToken };
 }
 
 export const doajAdapter: SourceAdapter = {
 	name: "doaj",
 
-	async *crawl(options: CrawlOptions): AsyncGenerator<NewPaper[]> {
+	async *crawl(
+		options: CrawlOptions
+	): AsyncGenerator<{ category: string | undefined; papers: NewPaper[] }> {
 		const maxRecords = options.maxRecords ?? Number.POSITIVE_INFINITY;
-		let page = 1;
-		let totalYielded = 0;
+		// DOAJ has no top-level/subcode structure — every selected LCC term is
+		// its own full harvest, no exceptions. No categories means one harvest
+		// across the whole repository, no set filter.
+		const labels = options.categories ?? [];
+		const units: HarvestUnit<NewPaper>[] =
+			labels.length > 0
+				? labels.map((label) => {
+						const setSpec = LABEL_TO_SET_SPEC.get(label);
+						if (!setSpec) {
+							throw new Error(`Unknown DOAJ LCC term: "${label}"`);
+						}
+						return {
+							category: label,
+							buildInitialUrl: () =>
+								buildUrl(options.since, options.until, setSpec, undefined),
+							buildResumeUrl: (token: string) =>
+								buildUrl(undefined, undefined, undefined, token),
+						};
+					})
+				: [
+						{
+							category: undefined,
+							buildInitialUrl: () =>
+								buildUrl(options.since, options.until, undefined, undefined),
+							buildResumeUrl: (token: string) =>
+								buildUrl(undefined, undefined, undefined, token),
+						},
+					];
 
-		while (true) {
-			const data = await fetchPage(buildUrl(options, page));
-			const results = data.results ?? [];
-
-			if (results.length === 0) {
-				break;
-			}
-
-			const records = results
-				.map(mapArticle)
-				.filter((r): r is NewPaper => r !== null);
-
-			if (records.length > 0) {
-				const batch = records.slice(0, maxRecords - totalYielded);
-				for (let i = 0; i < batch.length; i += PAGE_SIZE) {
-					yield batch.slice(i, i + PAGE_SIZE);
-				}
-				totalYielded += batch.length;
-			}
-
-			const total = data.total ?? 0;
-			if (
-				totalYielded >= maxRecords ||
-				page * PAGE_SIZE >= total ||
-				results.length < PAGE_SIZE
-			) {
-				break;
-			}
-
-			page++;
-			await sleep(REQUEST_DELAY_MS);
-		}
+		yield* harvestUnitsSequentially(
+			units,
+			fetchPage,
+			maxRecords,
+			BATCH_SIZE,
+			REQUEST_DELAY_MS
+		);
 	},
 };

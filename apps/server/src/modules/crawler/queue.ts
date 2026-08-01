@@ -15,6 +15,36 @@ import { arxivAdapter } from "./sources/arxiv";
 import { doajAdapter } from "./sources/doaj";
 import { semanticScholarAdapter } from "./sources/semantic-scholar";
 import type { CrawlOptions, SourceAdapter } from "./sources/types";
+import {
+	ARXIV_GROUP_TO_CANONICAL,
+	DOAJ_LCC_TO_CANONICAL,
+} from "./source-taxonomies";
+
+/**
+ * Maps a yielded batch's category to the search-facing canonical vocabulary
+ * (tech spec §3.2). Returns null when there's nothing to contribute this
+ * round (e.g. a target with no category filter) so the onConflict COALESCE
+ * below leaves an existing value alone rather than clobbering it with
+ * emptiness — except DOAJ, which always has a definite answer: either the
+ * mapped field or the deliberate "Uncategorized" fallback (tech spec §9).
+ */
+function resolveCanonicalCategories(
+	source: string,
+	category: string | undefined
+): string[] | null {
+	if (source === "semantic_scholar") {
+		return category ? [category] : null;
+	}
+	if (source === "arxiv") {
+		const field = category ? ARXIV_GROUP_TO_CANONICAL[category] : undefined;
+		return field ? [field] : null;
+	}
+	if (source === "doaj") {
+		const field = category ? DOAJ_LCC_TO_CANONICAL[category] : undefined;
+		return [field ?? "Uncategorized"];
+	}
+	return null;
+}
 
 async function triggerMlBackfill(): Promise<void> {
 	const url = `${env.ML_SERVICE_URL}/internal/backfill`;
@@ -83,6 +113,12 @@ export function estimateTotalRequests(
 	);
 }
 
+// Shared by estimateRun's response and the stats endpoint's "running past
+// estimate" check — one formula, not reimplemented per caller.
+export function estimatedRunSeconds(totalRequestsEstimate: number): number {
+	return Math.round(totalRequestsEstimate * 1.1);
+}
+
 async function processJob(
 	historyId: string,
 	source: string,
@@ -99,7 +135,17 @@ async function processJob(
 	const errors: string[] = [];
 
 	try {
-		for await (const batch of adapter.crawl(options)) {
+		for await (const { category, papers: rawBatch } of adapter.crawl(
+			options
+		)) {
+			// Applied once per batch, not per-paper — every paper in a batch was
+			// produced by the same sub-harvest and shares its one unambiguous
+			// category (tech spec §3.2, enabled by §3.3's yield-shape change).
+			const canonicalCategories = resolveCanonicalCategories(source, category);
+			const batch = rawBatch.map((p) => ({
+				...p,
+				canonical_categories: canonicalCategories,
+			}));
 			papersFound += batch.length;
 
 			try {
@@ -116,6 +162,7 @@ async function processJob(
 							// another source already provided for the same paper.
 							abstract: sql`COALESCE(excluded.abstract, ${papers.abstract})`,
 							keywords: sql`COALESCE(excluded.keywords, ${papers.keywords})`,
+							canonical_categories: sql`COALESCE(excluded.canonical_categories, ${papers.canonical_categories})`,
 							published_at: sql`COALESCE(excluded.published_at, ${papers.published_at})`,
 							journal: sql`COALESCE(excluded.journal, ${papers.journal})`,
 							doi: sql`COALESCE(excluded.doi, ${papers.doi})`,
@@ -172,6 +219,7 @@ async function processJob(
 		// Invalidate paper search/journals caches now that new data exists
 		await cacheDel("papers:*");
 		await cacheDel("journals:*");
+		await cacheDel("admin:stats");
 
 		return { papersInserted };
 	} catch (err) {
@@ -193,15 +241,15 @@ async function processJob(
 	}
 }
 
-async function getLastSuccessfulCrawlDateForSchedule(
-	scheduleId: string
+async function getLastSuccessfulCrawlDateForTarget(
+	targetId: string
 ): Promise<string | undefined> {
 	const rows = await db
 		.select({ completed_at: crawlHistory.completed_at })
 		.from(crawlHistory)
 		.where(
 			and(
-				eq(crawlHistory.schedule_id, scheduleId),
+				eq(crawlHistory.target_id, targetId),
 				eq(crawlHistory.status, "completed")
 			)
 		)
@@ -266,7 +314,6 @@ export async function runSchedule(
 		return null;
 	}
 
-	const since = await getLastSuccessfulCrawlDateForSchedule(scheduleId);
 	const totalRequestsEstimate = estimateTotalRequests(targets);
 
 	const [run] = await db
@@ -285,6 +332,7 @@ export async function runSchedule(
 
 	const q = getCrawlQueue();
 	for (const target of targets) {
+		const since = await getLastSuccessfulCrawlDateForTarget(target.id);
 		const options: CrawlOptions = {
 			query: target.query ?? undefined,
 			categories: target.categories ?? undefined,
@@ -296,11 +344,12 @@ export async function runSchedule(
 			.insert(crawlHistory)
 			.values({
 				job_id: crypto.randomUUID(),
-				source: schedule.source,
+				source: target.source,
 				status: "running",
 				options,
 				schedule_id: scheduleId,
 				run_id: run.id,
+				target_id: target.id,
 			})
 			.returning({ id: crawlHistory.id, job_id: crawlHistory.job_id });
 
@@ -313,7 +362,7 @@ export async function runSchedule(
 			{
 				kind: "crawl",
 				historyId: historyRow.id,
-				source: schedule.source,
+				source: target.source,
 				options,
 				runId: run.id,
 			},
@@ -555,7 +604,7 @@ export async function reconcileSchedules(): Promise<void> {
 			{ repeat: { pattern: schedule.cron_pattern }, jobId: schedule.id }
 		);
 		console.log(
-			`[crawler] registered trigger for schedule "${schedule.name}" (${schedule.source}) @ ${schedule.cron_pattern}`
+			`[crawler] registered trigger for schedule "${schedule.name}" @ ${schedule.cron_pattern}`
 		);
 	}
 

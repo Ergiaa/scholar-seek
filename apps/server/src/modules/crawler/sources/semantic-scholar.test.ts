@@ -2,10 +2,12 @@ import { afterEach, describe, expect, it, mock } from "bun:test";
 import type { NewPaper } from "@scholar-seek/db/schema/papers";
 import { semanticScholarAdapter } from "./semantic-scholar";
 
-async function collect(gen: AsyncGenerator<NewPaper[]>): Promise<NewPaper[]> {
+async function collect(
+	gen: AsyncGenerator<{ category: string | undefined; papers: NewPaper[] }>
+): Promise<NewPaper[]> {
 	const out: NewPaper[] = [];
-	for await (const batch of gen) {
-		out.push(...batch);
+	for await (const { papers } of gen) {
+		out.push(...papers);
 	}
 	return out;
 }

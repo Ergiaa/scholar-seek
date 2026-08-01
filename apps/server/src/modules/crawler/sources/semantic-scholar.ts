@@ -169,13 +169,19 @@ async function fetchPage(
 export const semanticScholarAdapter: SourceAdapter = {
 	name: "semantic_scholar",
 
-	async *crawl(options: CrawlOptions): AsyncGenerator<NewPaper[]> {
+	async *crawl(
+		options: CrawlOptions
+	): AsyncGenerator<{ category: string | undefined; papers: NewPaper[] }> {
 		if (!options.query?.trim()) {
 			throw new Error(
 				'The semantic_scholar source requires a "query" option (e.g. "large language models")'
 			);
 		}
 
+		// Semantic Scholar's fieldsOfStudy filter accepts one comma-separated
+		// list in a single request — never fans out — so every batch shares
+		// the same static category (the target's configured field, if any).
+		const category = options.categories?.[0];
 		const maxRecords = options.maxRecords ?? Number.POSITIVE_INFINITY;
 		let totalYielded = 0;
 		let token: string | undefined;
@@ -189,7 +195,7 @@ export const semanticScholarAdapter: SourceAdapter = {
 			if (records.length > 0) {
 				const batch = records.slice(0, maxRecords - totalYielded);
 				for (let i = 0; i < batch.length; i += BATCH_SIZE) {
-					yield batch.slice(i, i + BATCH_SIZE);
+					yield { category, papers: batch.slice(i, i + BATCH_SIZE) };
 				}
 				totalYielded += batch.length;
 			}

@@ -36,7 +36,7 @@ export const FIELDS_OF_STUDY = [
 export type FieldOfStudy = (typeof FIELDS_OF_STUDY)[number];
 
 /** ArXiv top-level category prefixes -> canonical field of study. */
-const ARXIV_PREFIX_TO_FIELD: Record<string, FieldOfStudy> = {
+export const ARXIV_PREFIX_TO_FIELD: Record<string, FieldOfStudy> = {
 	"astro-ph": "Physics",
 	"cond-mat": "Physics",
 	cs: "Computer Science",
