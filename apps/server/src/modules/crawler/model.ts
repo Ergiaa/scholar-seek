@@ -45,6 +45,9 @@ export const CrawlStatusResponse = t.Object({
 	startedAt: t.String(),
 	completedAt: t.Union([t.String(), t.Null()]),
 	durationMs: t.Union([t.Number(), t.Null()]),
+	scheduleId: t.Union([t.String(), t.Null()]),
+	scheduleName: t.Union([t.String(), t.Null()]),
+	options: t.Union([t.Record(t.String(), t.Unknown()), t.Null()]),
 });
 
 export const CrawlJobParams = t.Object({
@@ -54,11 +57,7 @@ export const CrawlJobParams = t.Object({
 export const CrawlHistoryQuery = t.Object({
 	source: t.Optional(CrawlSource),
 	status: t.Optional(
-		t.Union([
-			t.Literal("running"),
-			t.Literal("completed"),
-			t.Literal("failed"),
-		])
+		t.Union([t.Literal("running"), t.Literal("completed"), t.Literal("failed")])
 	),
 	since: t.Optional(t.String({ pattern: "^\\d{4}-\\d{2}-\\d{2}$" })),
 	until: t.Optional(t.String({ pattern: "^\\d{4}-\\d{2}-\\d{2}$" })),
@@ -102,7 +101,9 @@ export const UpdateScheduleBody = t.Object({
 	name: t.Optional(t.String({ minLength: 1, maxLength: 255 })),
 	cronPattern: t.Optional(t.String({ minLength: 1, maxLength: 100 })),
 	enabled: t.Optional(t.Boolean()),
-	targets: t.Optional(t.Array(ScheduleTargetBody, { minItems: 1, maxItems: 100 })),
+	targets: t.Optional(
+		t.Array(ScheduleTargetBody, { minItems: 1, maxItems: 100 })
+	),
 });
 
 export const ScheduleIdParams = t.Object({

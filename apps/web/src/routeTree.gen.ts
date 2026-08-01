@@ -10,14 +10,23 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SearchIndexRouteImport } from './routes/search/index'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as PaperIdRouteImport } from './routes/paper/$id'
-import { Route as AdminCrawlerRouteImport } from './routes/admin/crawler'
+import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as AdminSchedulesRouteImport } from './routes/admin/schedules'
+import { Route as AdminHistoryRouteImport } from './routes/admin/history'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRouteRoute = AdminRouteRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -30,51 +39,104 @@ const SearchIndexRoute = SearchIndexRouteImport.update({
   path: '/search/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const PaperIdRoute = PaperIdRouteImport.update({
   id: '/paper/$id',
   path: '/paper/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminCrawlerRoute = AdminCrawlerRouteImport.update({
-  id: '/admin/crawler',
-  path: '/admin/crawler',
-  getParentRoute: () => rootRouteImport,
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminSchedulesRoute = AdminSchedulesRouteImport.update({
+  id: '/schedules',
+  path: '/schedules',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminHistoryRoute = AdminHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteRouteWithChildren
   '/login': typeof LoginRoute
-  '/admin/crawler': typeof AdminCrawlerRoute
+  '/admin/history': typeof AdminHistoryRoute
+  '/admin/schedules': typeof AdminSchedulesRoute
+  '/admin/users': typeof AdminUsersRoute
   '/paper/$id': typeof PaperIdRoute
+  '/admin/': typeof AdminIndexRoute
   '/search/': typeof SearchIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/admin/crawler': typeof AdminCrawlerRoute
+  '/admin/history': typeof AdminHistoryRoute
+  '/admin/schedules': typeof AdminSchedulesRoute
+  '/admin/users': typeof AdminUsersRoute
   '/paper/$id': typeof PaperIdRoute
+  '/admin': typeof AdminIndexRoute
   '/search': typeof SearchIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteRouteWithChildren
   '/login': typeof LoginRoute
-  '/admin/crawler': typeof AdminCrawlerRoute
+  '/admin/history': typeof AdminHistoryRoute
+  '/admin/schedules': typeof AdminSchedulesRoute
+  '/admin/users': typeof AdminUsersRoute
   '/paper/$id': typeof PaperIdRoute
+  '/admin/': typeof AdminIndexRoute
   '/search/': typeof SearchIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/admin/crawler' | '/paper/$id' | '/search/'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/login'
+    | '/admin/history'
+    | '/admin/schedules'
+    | '/admin/users'
+    | '/paper/$id'
+    | '/admin/'
+    | '/search/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/admin/crawler' | '/paper/$id' | '/search'
-  id: '__root__' | '/' | '/login' | '/admin/crawler' | '/paper/$id' | '/search/'
+  to:
+    | '/'
+    | '/login'
+    | '/admin/history'
+    | '/admin/schedules'
+    | '/admin/users'
+    | '/paper/$id'
+    | '/admin'
+    | '/search'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/login'
+    | '/admin/history'
+    | '/admin/schedules'
+    | '/admin/users'
+    | '/paper/$id'
+    | '/admin/'
+    | '/search/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRouteRoute: typeof AdminRouteRouteWithChildren
   LoginRoute: typeof LoginRoute
-  AdminCrawlerRoute: typeof AdminCrawlerRoute
   PaperIdRoute: typeof PaperIdRoute
   SearchIndexRoute: typeof SearchIndexRoute
 }
@@ -86,6 +148,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -102,6 +171,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SearchIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/paper/$id': {
       id: '/paper/$id'
       path: '/paper/$id'
@@ -109,20 +185,52 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PaperIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/crawler': {
-      id: '/admin/crawler'
-      path: '/admin/crawler'
-      fullPath: '/admin/crawler'
-      preLoaderRoute: typeof AdminCrawlerRouteImport
-      parentRoute: typeof rootRouteImport
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/schedules': {
+      id: '/admin/schedules'
+      path: '/schedules'
+      fullPath: '/admin/schedules'
+      preLoaderRoute: typeof AdminSchedulesRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/history': {
+      id: '/admin/history'
+      path: '/history'
+      fullPath: '/admin/history'
+      preLoaderRoute: typeof AdminHistoryRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
   }
 }
 
+interface AdminRouteRouteChildren {
+  AdminHistoryRoute: typeof AdminHistoryRoute
+  AdminSchedulesRoute: typeof AdminSchedulesRoute
+  AdminUsersRoute: typeof AdminUsersRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteRouteChildren: AdminRouteRouteChildren = {
+  AdminHistoryRoute: AdminHistoryRoute,
+  AdminSchedulesRoute: AdminSchedulesRoute,
+  AdminUsersRoute: AdminUsersRoute,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
+  AdminRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRouteRoute: AdminRouteRouteWithChildren,
   LoginRoute: LoginRoute,
-  AdminCrawlerRoute: AdminCrawlerRoute,
   PaperIdRoute: PaperIdRoute,
   SearchIndexRoute: SearchIndexRoute,
 }

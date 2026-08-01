@@ -5,7 +5,7 @@ import { ThemeToggle } from "./theme-toggle";
 
 export default function Header() {
 	// Session state is only known client-side, so the auth-dependent links
-	// must not render on the server (or the first client paint) — otherwise
+	// must not render on the server (or the first client paint), otherwise
 	// hydration mismatches as soon as the client resolves a real session.
 	const [mounted, setMounted] = useState(false);
 	useEffect(() => setMounted(true), []);
@@ -21,8 +21,8 @@ export default function Header() {
 				</Link>
 				<div className="flex items-center gap-4">
 					{isAdmin && (
-						<Link className="text-sm" to="/admin/crawler">
-							Crawler
+						<Link className="text-sm" to="/admin">
+							Admin
 						</Link>
 					)}
 					{mounted &&

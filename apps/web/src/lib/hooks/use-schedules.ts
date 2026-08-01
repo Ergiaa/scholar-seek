@@ -1,73 +1,85 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/treaty";
 
+export type CrawlSource = "arxiv" | "semantic_scholar" | "doaj";
+
 export interface ScheduleTarget {
+	categories: string[] | null;
 	id: string;
 	label: string;
-	query: string | null;
-	categories: string[] | null;
 	maxRecords: number;
+	query: string | null;
+	source: string;
 }
 
 export interface Schedule {
-	id: string;
-	name: string;
-	source: string;
+	createdAt: string;
+	createdBy: string | null;
 	cronPattern: string;
 	enabled: boolean;
-	createdBy: string | null;
-	createdAt: string;
-	updatedAt: string;
-	targets: ScheduleTarget[];
+	id: string;
 	lastRun: {
 		id: string;
 		status: string;
 		startedAt: string;
 		completedAt: string | null;
 	} | null;
+	name: string;
+	targets: ScheduleTarget[];
+	updatedAt: string;
 }
 
 export interface RunEstimate {
-	scheduleId: string;
-	targetCount: number;
-	totalRequestsEstimate: number;
 	estimatedSeconds: number;
 	requiresOverride: boolean;
+	scheduleId: string;
 	sharedPoolWarning: boolean;
+	targetCount: number;
+	totalRequestsEstimate: number;
 }
 
 export interface ScheduleRun {
-	id: string;
-	scheduleId: string;
-	status: string;
-	targetCount: number;
+	cancelledAt: string | null;
+	completedAt: string | null;
 	completedCount: number;
 	failedCount: number;
-	totalRequestsEstimate: number;
+	id: string;
+	scheduleId: string;
 	startedAt: string;
-	completedAt: string | null;
-	cancelledAt: string | null;
+	status: string;
+	targetCount: number;
+	totalRequestsEstimate: number;
 }
 
+// The local form model allows `source` to be unset while an admin is still
+// picking one for a newly added row; the backend requires it on submit.
 export interface TargetInput {
-	label: string;
-	query?: string;
 	categories?: string[];
+	label: string;
 	maxRecords: number;
+	query?: string;
+	source?: CrawlSource;
+}
+
+export interface TargetSubmitInput {
+	categories?: string[];
+	label: string;
+	maxRecords: number;
+	query?: string;
+	source: CrawlSource;
 }
 
 export interface CreateScheduleInput {
-	name: string;
-	source: "arxiv" | "semantic_scholar" | "doaj";
 	cronPattern: string;
-	targets: TargetInput[];
+	name: string;
+	targets: TargetSubmitInput[];
 }
 
 export interface UpdateScheduleInput {
-	name?: string;
 	cronPattern?: string;
 	enabled?: boolean;
-	targets?: TargetInput[];
+	name?: string;
+	targets?: TargetSubmitInput[];
 }
 
 function isErrorWithMessage(value: unknown): value is { error: string } {
@@ -116,7 +128,9 @@ export function useUpdateSchedule() {
 			id,
 			...input
 		}: UpdateScheduleInput & { id: string }) => {
-			const { data, error } = await api.api.crawl.schedules({ id }).patch(input);
+			const { data, error } = await api.api.crawl
+				.schedules({ id })
+				.patch(input);
 			if (error) {
 				const message = isErrorWithMessage(error.value)
 					? error.value.error
@@ -150,7 +164,9 @@ export function useDeleteSchedule() {
 }
 
 export async function estimateRun(scheduleId: string): Promise<RunEstimate> {
-	const { data, error } = await api.api.crawl.schedules({ id: scheduleId }).run.get();
+	const { data, error } = await api.api.crawl
+		.schedules({ id: scheduleId })
+		.run.get();
 	if (error) {
 		const message = isErrorWithMessage(error.value)
 			? error.value.error
@@ -170,9 +186,11 @@ export function useConfirmRun() {
 			scheduleId: string;
 			override?: boolean;
 		}) => {
-			const { data, error } = await api.api.crawl.schedules({ id: scheduleId }).run.post({
-				override,
-			});
+			const { data, error } = await api.api.crawl
+				.schedules({ id: scheduleId })
+				.run.post({
+					override,
+				});
 			if (error) {
 				const message = isErrorWithMessage(error.value)
 					? error.value.error
@@ -191,9 +209,11 @@ export function useScheduleRun(runId: string | null) {
 	return useQuery({
 		queryKey: ["crawl-schedule-run", runId],
 		queryFn: async () => {
-			const { data, error } = await api.api.crawl.schedules.runs({
-				runId: runId as string,
-			}).get();
+			const { data, error } = await api.api.crawl.schedules
+				.runs({
+					runId: runId as string,
+				})
+				.get();
 			if (error) {
 				const message = isErrorWithMessage(error.value)
 					? error.value.error
@@ -212,9 +232,11 @@ export function useCancelRun() {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: async (runId: string) => {
-			const { data, error } = await api.api.crawl.schedules.runs({
-				runId,
-			}).cancel.post();
+			const { data, error } = await api.api.crawl.schedules
+				.runs({
+					runId,
+				})
+				.cancel.post();
 			if (error) {
 				const message = isErrorWithMessage(error.value)
 					? error.value.error

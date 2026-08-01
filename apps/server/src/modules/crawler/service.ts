@@ -1,10 +1,11 @@
 import { db } from "@scholar-seek/db";
-import { crawlHistory, type CrawlStatus } from "@scholar-seek/db/schema/crawl-history";
+import {
+	type CrawlStatus,
+	crawlHistory,
+} from "@scholar-seek/db/schema/crawl-history";
+import { crawlSchedule } from "@scholar-seek/db/schema/crawl-schedule";
 import { and, count, desc, eq, gte, lte, type SQL } from "drizzle-orm";
-import type {
-	CrawlOptionsBodyType,
-	CrawlStatusResponseType,
-} from "./model";
+import type { CrawlOptionsBodyType, CrawlStatusResponseType } from "./model";
 import { getCrawlQueue } from "./queue";
 
 export async function startCrawl(
@@ -53,8 +54,12 @@ export async function getCrawlStatus(
 ): Promise<CrawlStatusResponseType | null> {
 	// Look up by job_id in the DB (source of truth for completed/failed jobs)
 	const rows = await db
-		.select()
+		.select({
+			history: crawlHistory,
+			scheduleName: crawlSchedule.name,
+		})
 		.from(crawlHistory)
+		.leftJoin(crawlSchedule, eq(crawlHistory.schedule_id, crawlSchedule.id))
 		.where(eq(crawlHistory.job_id, jobId))
 		.limit(1);
 
@@ -63,11 +68,12 @@ export async function getCrawlStatus(
 		return null;
 	}
 
-	return toCrawlStatusResponse(row);
+	return toCrawlStatusResponse(row.history, row.scheduleName);
 }
 
 function toCrawlStatusResponse(
-	row: typeof crawlHistory.$inferSelect
+	row: typeof crawlHistory.$inferSelect,
+	scheduleName: string | null = null
 ): CrawlStatusResponseType {
 	return {
 		jobId: row.job_id,
@@ -81,16 +87,19 @@ function toCrawlStatusResponse(
 		startedAt: row.started_at.toISOString(),
 		completedAt: row.completed_at?.toISOString() ?? null,
 		durationMs: row.duration_ms,
+		scheduleId: row.schedule_id,
+		scheduleName,
+		options: (row.options as Record<string, unknown> | null) ?? null,
 	};
 }
 
 export interface CrawlHistoryParams {
-	source?: string;
-	status?: CrawlStatus;
-	since?: string;
-	until?: string;
 	page?: number;
 	pageSize?: number;
+	since?: string;
+	source?: string;
+	status?: CrawlStatus;
+	until?: string;
 }
 
 // Mirrors papers/service.ts's buildFilterConditions pattern — conditionally
@@ -131,8 +140,12 @@ export async function getCrawlHistory(params: CrawlHistoryParams): Promise<{
 
 	const [rows, countResult] = await Promise.all([
 		db
-			.select()
+			.select({
+				history: crawlHistory,
+				scheduleName: crawlSchedule.name,
+			})
 			.from(crawlHistory)
+			.leftJoin(crawlSchedule, eq(crawlHistory.schedule_id, crawlSchedule.id))
 			.where(whereClause)
 			.orderBy(desc(crawlHistory.started_at))
 			.limit(pageSize)
@@ -141,7 +154,7 @@ export async function getCrawlHistory(params: CrawlHistoryParams): Promise<{
 	]);
 
 	return {
-		history: rows.map(toCrawlStatusResponse),
+		history: rows.map((r) => toCrawlStatusResponse(r.history, r.scheduleName)),
 		total: Number(countResult[0]?.count ?? 0),
 		page,
 		pageSize,
