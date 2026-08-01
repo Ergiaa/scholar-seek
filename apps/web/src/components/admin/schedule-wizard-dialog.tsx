@@ -132,6 +132,19 @@ function emptyTarget(): TargetInput {
 	return { label: "", maxRecords: 2000 };
 }
 
+// TanStack Start's SSR hydration revives ISO-8601-looking strings as real
+// Date objects before they reach this component, so `since`/`until` can
+// arrive as either a "YYYY-MM-DD" string or a Date — `<input type="date">`
+// rejects anything else (and silently renders blank), so always normalize
+// to the plain 10-char form it needs.
+function toDateInputValue(value: unknown): string | undefined {
+	if (!value) {
+		return undefined;
+	}
+	const str = value instanceof Date ? value.toISOString() : String(value);
+	return str.slice(0, 10);
+}
+
 function targetInputFromSchedule(schedule: Schedule): TargetInput[] {
 	return schedule.targets.map((t) => ({
 		source: t.source as CrawlSource,
@@ -139,6 +152,9 @@ function targetInputFromSchedule(schedule: Schedule): TargetInput[] {
 		query: t.query ?? undefined,
 		categories: t.categories ?? undefined,
 		maxRecords: t.maxRecords,
+		since: toDateInputValue(t.since),
+		until: toDateInputValue(t.until),
+		language: t.language ?? undefined,
 	}));
 }
 
@@ -152,6 +168,9 @@ function targetErrors(target: TargetInput): string[] {
 	}
 	if (target.source === "semantic_scholar" && !target.query?.trim()) {
 		errors.push("Query is required for Semantic Scholar");
+	}
+	if (target.since && target.until && target.since > target.until) {
+		errors.push('"Since" must be before "Until"');
 	}
 	return errors;
 }
@@ -199,9 +218,10 @@ export function ScheduleWizardDialog({
 
 	function handleOpenChange(next: boolean) {
 		setOpen(next);
-		if (!next) {
-			resetForm();
-		}
+		// Re-sync from the current `schedule` prop both when opening (so a
+		// just-saved edit is reflected, not whatever was left over from
+		// before the save) and when closing (discard unsaved changes).
+		resetForm();
 	}
 
 	function handleCadenceModeChange(next: CadenceMode) {
@@ -265,6 +285,9 @@ export function ScheduleWizardDialog({
 			query: t.query?.trim() ? t.query.trim() : undefined,
 			categories: t.categories?.length ? t.categories : undefined,
 			maxRecords: t.maxRecords,
+			since: t.since || undefined,
+			until: t.until || undefined,
+			language: t.language?.trim() ? t.language.trim() : undefined,
 		}));
 		const input: CreateScheduleInput = {
 			name: name.trim(),
@@ -470,6 +493,57 @@ export function ScheduleWizardDialog({
 										value={target.categories ?? []}
 									/>
 
+									<div className="flex flex-col gap-1">
+										<Label>Date range (optional)</Label>
+										<div className="flex gap-2">
+											<input
+												className="h-8 flex-1 border bg-background px-2 text-xs"
+												onChange={(e) =>
+													updateTarget(i, {
+														since: e.target.value || undefined,
+													})
+												}
+												type="date"
+												value={target.since ?? ""}
+											/>
+											<input
+												className="h-8 flex-1 border bg-background px-2 text-xs"
+												onChange={(e) =>
+													updateTarget(i, {
+														until: e.target.value || undefined,
+													})
+												}
+												type="date"
+												value={target.until ?? ""}
+											/>
+										</div>
+										<p className="text-[11px] text-muted-foreground">
+											Leave blank to crawl incrementally since this target's
+											last successful run. Set both to fetch a fixed period on
+											every run instead.
+										</p>
+									</div>
+
+									{target.source === "doaj" && (
+										<div className="flex flex-col gap-1">
+											<Label htmlFor={`target-language-${i}`}>
+												Language filter (optional)
+											</Label>
+											<Input
+												id={`target-language-${i}`}
+												onChange={(e) =>
+													updateTarget(i, { language: e.target.value })
+												}
+												placeholder="Leave blank for all languages"
+												value={target.language ?? ""}
+											/>
+											<p className="text-[11px] text-muted-foreground">
+												ISO 639-2 code, e.g. "eng" for English, "ind" for
+												Indonesian.
+											</p>
+										</div>
+									)}
+
 									<Input
 										min={1}
 										onChange={(e) =>
@@ -521,6 +595,26 @@ export function ScheduleWizardDialog({
 								{combinedMaxRecords.toLocaleString()}
 							</span>
 						</div>
+						{targets.some((t) => t.since || t.until) && (
+							<div className="flex justify-between">
+								<span className="text-muted-foreground">Date range</span>
+								<span className="font-medium">
+									{targets.filter((t) => t.since || t.until).length} target(s)
+									use a fixed period
+								</span>
+							</div>
+						)}
+						{targets.some((t) => t.language) && (
+							<div className="flex justify-between">
+								<span className="text-muted-foreground">Language filter</span>
+								<span className="font-medium">
+									{targets
+										.filter((t) => t.language)
+										.map((t) => t.language)
+										.join(", ")}
+								</span>
+							</div>
+						)}
 					</div>
 				)}
 

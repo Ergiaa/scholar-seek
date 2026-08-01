@@ -7,9 +7,12 @@ export interface ScheduleTarget {
 	categories: string[] | null;
 	id: string;
 	label: string;
+	language: string | null;
 	maxRecords: number;
 	query: string | null;
+	since: string | null;
 	source: string;
+	until: string | null;
 }
 
 export interface Schedule {
@@ -56,17 +59,23 @@ export interface ScheduleRun {
 export interface TargetInput {
 	categories?: string[];
 	label: string;
+	language?: string;
 	maxRecords: number;
 	query?: string;
+	since?: string;
 	source?: CrawlSource;
+	until?: string;
 }
 
 export interface TargetSubmitInput {
 	categories?: string[];
 	label: string;
+	language?: string;
 	maxRecords: number;
 	query?: string;
+	since?: string;
 	source: CrawlSource;
+	until?: string;
 }
 
 export interface CreateScheduleInput {
@@ -115,8 +124,11 @@ export function useCreateSchedule() {
 			}
 			return data as Schedule;
 		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["crawl-schedules"] });
+		// Awaited so callers chaining off mutateAsync (e.g. the schedule
+		// wizard closing right after a save) see the refetched cache, not
+		// the pre-edit snapshot invalidateQueries hasn't resolved yet.
+		onSuccess: async () => {
+			await queryClient.invalidateQueries({ queryKey: ["crawl-schedules"] });
 		},
 	});
 }
@@ -139,8 +151,9 @@ export function useUpdateSchedule() {
 			}
 			return data as Schedule;
 		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["crawl-schedules"] });
+		// See useCreateSchedule's onSuccess for why this is awaited.
+		onSuccess: async () => {
+			await queryClient.invalidateQueries({ queryKey: ["crawl-schedules"] });
 		},
 	});
 }
