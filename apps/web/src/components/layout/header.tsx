@@ -17,7 +17,7 @@ export default function Header() {
 		<header className="border-b">
 			<div className="container mx-auto flex items-center justify-between px-4 py-4">
 				<Link className="font-semibold text-xl" to="/">
-					Scholar Seek
+					Crawlinc
 				</Link>
 				<div className="flex items-center gap-4">
 					{isAdmin && (

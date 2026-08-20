@@ -30,7 +30,7 @@ export const Route = createFileRoute("/paper/$id")({
 	},
 	head: ({ params }) => ({
 		meta: [
-			{ title: `${params.id} - Scholar Seek` },
+			{ title: `${params.id} - Crawlinc` },
 			{ name: "description", content: "View paper details" },
 		],
 	}),
@@ -56,7 +56,7 @@ function PaperPage() {
 
 	useEffect(() => {
 		if (paper) {
-			document.title = `${paper.title} - Scholar Seek`;
+			document.title = `${paper.title} - Crawlinc`;
 		}
 	}, [paper]);
 

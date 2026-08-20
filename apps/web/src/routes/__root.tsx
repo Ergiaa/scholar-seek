@@ -27,7 +27,7 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
 				content: "width=device-width, initial-scale=1",
 			},
 			{
-				title: "Scholar Seek - Academic Research Discovery",
+				title: "Crawlinc - Academic Research Discovery",
 			},
 			{
 				name: "description",

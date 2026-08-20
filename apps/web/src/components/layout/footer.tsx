@@ -7,7 +7,7 @@ export function Footer() {
 			<div className="container mx-auto px-4 py-8">
 				<div className="flex flex-col items-center justify-between gap-4 md:flex-row">
 					<div className="text-center md:text-left">
-						<p className="font-semibold">Scholar Seek</p>
+						<p className="font-semibold">Crawlinc</p>
 						<p className="text-muted-foreground text-sm">
 							Academic research discovery platform.
 						</p>
@@ -25,7 +25,7 @@ export function Footer() {
 					</div>
 				</div>
 				<div className="mt-8 flex flex-col items-center justify-between gap-4 border-t pt-8 text-muted-foreground text-xs md:flex-row">
-					<p>©{new Date().getFullYear()} Scholar Seek. Demo project.</p>
+					<p>©{new Date().getFullYear()} Crawlinc. Demo project.</p>
 					<div className="flex items-center gap-4">
 						<a
 							aria-label="GitHub"
